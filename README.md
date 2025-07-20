@@ -1,94 +1,92 @@
-# 🐱 Cat Meme Locomotion
+# Cat Meme Locomotion 🐱🤖
 
-Replicate cat meme movements on a Unitree quadruped robot in Genesis simulator using motion extraction from GIF animations.
+Replicate cat meme movements on Unitree Go2 robot in Genesis simulator.
 
-## 🚀 Quick Start
+## Overview
 
-### Prerequisites
+This project extracts motion patterns from a cat GIF (chipi-chipi-chapa-chapa) and applies them to a Unitree Go2 quadruped robot in the Genesis physics simulator.
 
-- Python 3.9+
-- [uv](https://github.com/astral-sh/uv) package manager
+## Features
 
-### Installation
+- **Motion Extraction**: Analyzes cat GIF to extract bounce patterns and frequency
+- **3D Robot Simulation**: Uses Unitree Go2 URDF model with proper mesh files
+- **Cat-like Movement**: Implements trotting gait with bounce motion matching the cat
+- **Real-time Visualization**: 60 FPS simulation with Genesis renderer
+
+## Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/cat-meme-locomotion.git
+git clone <repo-url>
 cd cat-meme-locomotion
 
 # Install with uv
-uv pip install -e .
+uv sync
 ```
 
-### Usage
+## Usage
+
+Run the cat motion simulation:
 
 ```bash
-# Run Unitree robot simulation with cat motion
 uv run cat-unitree
+```
 
-# Extract motion data only
+Extract motion data from GIF:
+
+```bash
 uv run extract-motion
 ```
 
-### Features
-
-- 🎯 **Motion Extraction**: Analyzes cat GIF to extract bounce patterns
-- 🤖 **3D Simulation**: Unitree Go1 robot replicates cat movements in Genesis
-- 🎮 **Real-time Control**: Dynamic joint control based on motion data
-- 📊 **Motion Analysis**: Generates detailed motion statistics
-
-### Make Commands
-
-```bash
-make install    # Install dependencies
-make run        # Run Unitree simulation
-make extract    # Extract motion only
-make clean      # Clean generated files
-```
-
-## 📁 Project Structure
+## Project Structure
 
 ```
 cat-meme-locomotion/
-├── src/
-│   └── cat_meme_locomotion/
-│       ├── core/                  # Core modules
-│       │   └── motion_extractor.py
-│       ├── main.py               # Entry point
-│       ├── unitree_3d.py         # Unitree robot controller
-│       └── motion_extractor.py   # CLI for motion extraction
-├── assets/
-│   ├── gifs/                     # Input GIF files
-│   └── models/                   # Robot URDF files
-│       └── unitree/              # Unitree robot models
-├── outputs/                      # Generated outputs
-├── pyproject.toml               # Project configuration
-└── Makefile                     # Convenience commands
+├── src/cat_meme_locomotion/
+│   ├── core/
+│   │   └── motion_extractor.py    # GIF motion analysis
+│   ├── unitree_3d_final.py        # Main robot controller
+│   └── __init__.py
+├── assets/gifs/
+│   └── chipi-chipi-chapa-chapa.gif # Source cat animation
+├── dae/                            # Unitree Go2 mesh files
+├── go2.urdf                        # Robot description
+└── pyproject.toml                  # Project configuration
 ```
 
-## 🛠️ Development
+## Implementation Details
 
-```bash
-# Install development dependencies
-uv pip install -e ".[dev]"
+### Motion Extraction
+- Uses OpenCV and PIL to analyze GIF frames
+- Detects vertical motion and bounce peaks (55 peaks detected)
+- Normalizes motion data for robot control
 
-# Run linters
-make lint
+### Robot Control (Genesis Official Style)
+- Based on Genesis official locomotion example
+- PD control with kp=20.0, kd=0.5 (50Hz control frequency)
+- Proper joint ordering: FR → FL → RR → RL
+- Official standing pose:
+  - Front legs: thigh=0.8, calf=-1.5
+  - Rear legs: thigh=1.0, calf=-1.5
+- Trotting gait: FR+RL and FL+RR move together
+- Cat bounce motion applied on top of standing pose
 
-# Format code
-make format
+### Key Improvements from Official Example
+1. Uses Genesis scene building with n_envs=1
+2. Proper joint naming and motor indexing
+3. PD gains applied through set_dofs_kp/kv
+4. Control via control_dofs_position method
+5. Stable 25 FPS simulation matching control frequency
 
-# Run tests
-make test
-```
+## Requirements
 
-## 📊 How It Works
+- Python >= 3.9
+- Genesis-world >= 0.2.0
+- CUDA-capable GPU
+- Unitree Go2 mesh files (DAE format)
 
-1. **Motion Extraction**: Analyzes cat GIF frames to detect vertical movement patterns
-2. **Pattern Analysis**: Identifies bounce peaks and movement frequency
-3. **Motion Mapping**: Converts cat movements to Spot robot joint trajectories
-4. **Real-time Simulation**: Spot robot mimics the cat's dance in Genesis simulator
+## Credits
 
-## 📝 License
-
-MIT License - see LICENSE file for details
+- Genesis simulator by Genesis Embodied AI
+- Unitree Go2 robot model
+- Original cat meme: chipi-chipi-chapa-chapa

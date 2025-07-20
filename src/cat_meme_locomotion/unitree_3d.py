@@ -38,13 +38,9 @@ class UnitreeRobotController:
         self.motion_data = None
         self.frame_idx = 0
         
-        # Joint names for Unitree robots
-        self.joint_names = [
-            'FL_hip_joint', 'FL_thigh_joint', 'FL_calf_joint',
-            'FR_hip_joint', 'FR_thigh_joint', 'FR_calf_joint',
-            'RL_hip_joint', 'RL_thigh_joint', 'RL_calf_joint',
-            'RR_hip_joint', 'RR_thigh_joint', 'RR_calf_joint'
-        ]
+        # Joint names for Unitree Go2 robots (from URDF)
+        self.joint_names = []
+        self.joint_indices = {}
         
     def create_scene(self):
         """Create Genesis scene."""
@@ -71,12 +67,57 @@ class UnitreeRobotController:
         )
         
     def load_unitree_robot(self):
-        """Load Unitree Go1 robot model."""
-        print("🤖 Creating Unitree-style robot...")
+        """Load Unitree Go2 robot model."""
+        print("🤖 Loading Unitree Go2 robot...")
         
-        # For now, always use simplified model to avoid URDF/mesh issues
-        print("✅ Using simplified Unitree robot model")
-        self._create_simple_unitree()
+        # First, copy the URDF to fix the mesh paths
+        self._fix_urdf_paths()
+        
+        # Load the fixed URDF
+        urdf_path = Path("go2_fixed.urdf")
+        if urdf_path.exists():
+            try:
+                print(f"📁 Loading URDF from: {urdf_path}")
+                self.robot = self.scene.add_entity(
+                    gs.morphs.URDF(
+                        file=str(urdf_path),
+                        pos=(0, 0, 0.35),
+                        euler=(0, 0, 0),
+                    ),
+                )
+                print("✅ Successfully loaded Unitree Go2 robot from URDF!")
+                # Do NOT use simplified model - we have the real one
+                return
+            except Exception as e:
+                print(f"❌ Error loading URDF: {e}")
+                raise  # Don't fall back to simplified model
+        else:
+            print("❌ Fixed URDF file not found")
+            raise RuntimeError("Cannot load Unitree Go2 URDF")
+    
+    def _fix_urdf_paths(self):
+        """Fix mesh paths in URDF to use absolute paths."""
+        import re
+        
+        # Read original URDF
+        with open("go2.urdf", "r") as f:
+            urdf_content = f.read()
+        
+        # Get current directory
+        current_dir = Path.cwd()
+        
+        # Replace relative mesh paths with absolute paths
+        urdf_content = re.sub(
+            r'filename="../dae/([^"]+)"',
+            f'filename="{current_dir}/dae/\\1"',
+            urdf_content
+        )
+        
+        # Write fixed URDF
+        with open("go2_fixed.urdf", "w") as f:
+            f.write(urdf_content)
+        
+        print("✅ Fixed URDF mesh paths")
     
     def _create_simple_unitree(self):
         """Create simplified Unitree-like robot using primitive shapes."""
@@ -159,32 +200,66 @@ class UnitreeRobotController:
         print("   • Robot mimics cat bouncing motion")
         print("   • Close viewer to exit\n")
         
-        # Get robot DOFs if available
+        # Get robot DOFs and joint information
         try:
             num_dofs = self.robot.n_dofs
             print(f"Robot has {num_dofs} degrees of freedom")
             
-            # Set initial pose
+            # Get joint names from URDF
+            joint_names = []
+            joint_limits = []
+            
+            # For Go2, we expect specific joint naming pattern
+            # Try to detect joint names based on common patterns
+            expected_joints = [
+                # Front Left
+                'FL_hip_joint', 'FL_thigh_joint', 'FL_calf_joint',
+                # Front Right  
+                'FR_hip_joint', 'FR_thigh_joint', 'FR_calf_joint',
+                # Rear Left
+                'RL_hip_joint', 'RL_thigh_joint', 'RL_calf_joint',
+                # Rear Right
+                'RR_hip_joint', 'RR_thigh_joint', 'RR_calf_joint'
+            ]
+            
+            # Map joint indices
+            self.joint_indices = {}
+            for i, name in enumerate(expected_joints):
+                if i < num_dofs:
+                    self.joint_indices[name] = i
+            
+            print(f"Mapped {len(self.joint_indices)} joints")
+            
+            # Set initial standing pose
             initial_qpos = np.zeros(num_dofs)
-            # Set standing pose for quadruped
-            if num_dofs == 12:  # Unitree has 12 DOFs
-                # Hip joints slightly outward
-                initial_qpos[0] = 0.1   # FL hip
-                initial_qpos[3] = -0.1  # FR hip  
-                initial_qpos[6] = 0.1   # RL hip
-                initial_qpos[9] = -0.1  # RR hip
-                
-                # Thigh joints
+            
+            # Standing position for Go2
+            # Start with all joints at zero, then adjust
+            for i in range(min(num_dofs, 18)):
+                initial_qpos[i] = 0.0
+            
+            # Set specific joint angles for standing
+            # These values are typical for Unitree robots
+            if num_dofs >= 12:
+                # Hip joints (keep at 0)
+                # Thigh joints - negative for proper stance
                 for i in [1, 4, 7, 10]:
-                    initial_qpos[i] = -0.8
-                    
-                # Calf joints
+                    if i < num_dofs:
+                        initial_qpos[i] = -0.7
+                
+                # Calf joints - positive for proper stance  
                 for i in [2, 5, 8, 11]:
-                    initial_qpos[i] = 1.6
-                    
+                    if i < num_dofs:
+                        initial_qpos[i] = 1.4
+                        
             self.robot.set_dofs_position(initial_qpos)
-        except:
-            print("Note: Using simplified model without articulated joints")
+            print("✅ Set initial standing pose")
+            
+            # Store for later use
+            self.initial_pose = initial_qpos.copy()
+            
+        except Exception as e:
+            print(f"Warning: Could not set initial pose: {e}")
         
         # Animation loop
         while self.scene.viewer.is_alive():
@@ -213,32 +288,44 @@ class UnitreeRobotController:
     
     def _update_articulated_robot(self, bounce: float, phase: float):
         """Update articulated robot joints."""
+        # Get current joint positions
         qpos = self.robot.get_dofs_position()
+        num_dofs = len(qpos)
         
-        # Create bouncing gait
+        # Only update the first 12 DOFs (leg joints)
+        # Skip head/tail joints if present
         for leg_idx in range(4):
+            # Each leg has 3 joints
             hip_idx = leg_idx * 3
             thigh_idx = hip_idx + 1
             calf_idx = hip_idx + 2
             
-            # Phase shift for each leg
+            # Check bounds
+            if calf_idx >= num_dofs:
+                break
+            
+            # Phase shift for each leg to create trotting pattern
             leg_phase = phase + leg_idx * np.pi / 2
             
-            # Hip movement (lateral)
-            qpos[hip_idx] = 0.1 * np.sin(leg_phase) * (1 if leg_idx % 2 == 0 else -1)
+            # Hip joint movement (abduction/adduction) - minimal
+            qpos[hip_idx] = 0.05 * np.sin(leg_phase)
             
-            # Thigh movement (main bounce)
-            qpos[thigh_idx] = -0.8 + bounce * 0.3 * np.sin(leg_phase * 2)
+            # Thigh joint - main movement for cat-like bounce
+            # Base angle + dynamic movement
+            base_thigh = -0.7  # Base standing angle
+            bounce_motion = bounce * 0.2 * np.sin(leg_phase * 2)
+            qpos[thigh_idx] = base_thigh + bounce_motion
             
-            # Calf movement (follows thigh)
-            qpos[calf_idx] = 1.6 - bounce * 0.4 * np.sin(leg_phase * 2)
+            # Calf joint - follows thigh with opposite motion
+            base_calf = 1.4  # Base standing angle
+            calf_motion = -bounce * 0.3 * np.sin(leg_phase * 2)
+            qpos[calf_idx] = base_calf + calf_motion
         
         # Apply joint positions
         self.robot.set_dofs_position(qpos)
         
-        # Add body motion
-        base_height = 0.35 + bounce * 0.1
-        self.robot.set_pos(np.array([0, 0, base_height]))
+        # Don't modify robot base position - let physics handle it
+        # The bounce should come from leg movement, not teleporting the body
     
     def _update_simple_robot(self, bounce: float, phase: float):
         """Update simple robot body and legs."""
