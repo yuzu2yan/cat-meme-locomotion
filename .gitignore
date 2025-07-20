@@ -26,10 +26,12 @@ wheels/
 env/
 venv/
 ENV/
+env.bak/
+venv.bak/
 
-# uv
-.uv/
-.python-version
+# UV
+.venv/
+uv.lock
 
 # IDE
 .vscode/
@@ -38,15 +40,16 @@ ENV/
 *.swo
 *~
 
-# Project specific
-outputs/
-*.png
-*.jpg
-*.jpeg
-!assets/**/*
-.DS_Store
+# Genesis
+logs/
+*.pt
+*.pkl
+go2_fixed.urdf
 
-# Genesis/Simulation
-*.log
-*.tmp
-checkpoint/
+# Outputs
+outputs/*.gif
+outputs/*.mp4
+
+# OS
+.DS_Store
+Thumbs.db
