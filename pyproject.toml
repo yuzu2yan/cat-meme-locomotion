@@ -1,0 +1,47 @@
+[project]
+name = "cat-meme-locomotion"
+version = "0.1.0"
+description = "Replicate cat meme movements on Spot robot in Genesis simulator"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "genesis-world>=0.2.0",
+    "torch>=2.0.0",
+    "trimesh>=4.0.0",
+    "numpy>=1.24.0",
+    "opencv-python>=4.8.0",
+    "pillow>=10.0.0",
+    "matplotlib>=3.7.0",
+    "scipy>=1.11.0",
+]
+
+[project.scripts]
+cat-unitree = "cat_meme_locomotion.unitree_3d:run_unitree_simulation"
+extract-motion = "cat_meme_locomotion.motion_extractor:analyze_gif"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.4.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.5.0",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+select = ["E", "F", "I", "N", "W"]
+
+[tool.black]
+line-length = 88
+target-version = ["py39"]
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
