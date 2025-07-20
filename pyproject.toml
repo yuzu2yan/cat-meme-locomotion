@@ -17,9 +17,6 @@ dependencies = [
 
 [project.scripts]
 cat-unitree = "cat_meme_locomotion.unitree_genesis_official:run_official_simulation"
-cat-unitree-final = "cat_meme_locomotion.unitree_3d_final:run_final_simulation"
-cat-unitree-improved = "cat_meme_locomotion.unitree_3d_improved:run_improved_simulation"
-cat-unitree-original = "cat_meme_locomotion.unitree_3d:run_unitree_simulation"
 extract-motion = "cat_meme_locomotion.core.motion_extractor:main"
 
 [build-system]

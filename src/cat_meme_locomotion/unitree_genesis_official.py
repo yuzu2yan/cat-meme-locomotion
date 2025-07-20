@@ -41,8 +41,11 @@ class UnitreeOfficialController:
         
         # Control parameters from official example
         self.dt = 0.02  # 50Hz control frequency
-        self.kp = 20.0  # Position gain
-        self.kd = 0.5   # Velocity gain
+        self.kp = 30.0  # Increased position gain for snappier response
+        self.kd = 1.0   # Increased velocity gain for better damping
+        
+        # Motion speed multiplier
+        self.motion_speed = 3.0  # Speed up motion 3x to match GIF
         
         # Joint configuration - official Go2 naming and order
         self.joint_names = [
@@ -196,11 +199,12 @@ class UnitreeOfficialController:
         # Control loop
         while self.scene.viewer.is_alive():
             # Get motion parameters
-            motion_idx = self.frame_idx % len(y_motion)
-            bounce = y_motion[motion_idx]
+            # Speed up frame progression
+            motion_frame = int(self.frame_idx * self.motion_speed) % len(y_motion)
+            bounce = y_motion[motion_frame]
             
-            # Time for gait phase
-            t = self.frame_idx * self.dt
+            # Time for gait phase (also speed up)
+            t = self.frame_idx * self.dt * self.motion_speed
             
             # Calculate target positions
             target_dof_pos = self.default_dof_pos.clone()
@@ -223,16 +227,16 @@ class UnitreeOfficialController:
                 leg_phase = t * 2 * np.pi + phase
                 
                 # Hip joint - minimal movement
-                target_dof_pos[hip_idx] = self.default_dof_pos[hip_idx] + 0.05 * np.sin(leg_phase)
+                target_dof_pos[hip_idx] = self.default_dof_pos[hip_idx] + 0.1 * np.sin(leg_phase)
                 
                 # Thigh joint - main bounce driver
-                # Adjust amplitude based on bounce intensity
-                thigh_motion = 0.2 * bounce + 0.1
+                # Increased amplitude for more dynamic motion
+                thigh_motion = 0.4 * bounce + 0.2
                 target_dof_pos[thigh_idx] = self.default_dof_pos[thigh_idx] - thigh_motion * np.sin(leg_phase)
                 
                 # Calf joint - coordinate with thigh
-                # Phase offset for natural motion
-                calf_motion = 0.3 * bounce + 0.15
+                # Increased amplitude for snappier motion
+                calf_motion = 0.5 * bounce + 0.3
                 target_dof_pos[calf_idx] = self.default_dof_pos[calf_idx] + calf_motion * np.sin(leg_phase - np.pi/4)
             
             # Apply position control
