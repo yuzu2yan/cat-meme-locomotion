@@ -256,14 +256,40 @@ class UnitreeOfficialController:
 
 def run_official_simulation():
     """Run simulation using Genesis official approach."""
+    import argparse
+    from pathlib import Path
     from cat_meme_locomotion.core.motion_extractor import CatMotionExtractor
+    
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Unitree robot mimics cat motion from GIF")
+    parser.add_argument(
+        "--gif", 
+        type=str, 
+        default="assets/gifs/chipi-chipi-chapa-chapa.gif",
+        help="Path to the GIF file (default: assets/gifs/chipi-chipi-chapa-chapa.gif)"
+    )
+    parser.add_argument(
+        "--speed",
+        type=float,
+        default=3.0,
+        help="Motion speed multiplier (default: 3.0)"
+    )
+    args = parser.parse_args()
+    
+    # Validate GIF path
+    gif_path = Path(args.gif)
+    if not gif_path.exists():
+        print(f"❌ Error: GIF file not found: {gif_path}")
+        return
     
     print("🐱 Unitree Cat Motion (Genesis Official Style)")
     print("=" * 50)
+    print(f"📁 GIF: {gif_path}")
+    print(f"⚡ Speed: {args.speed}x")
     
     # Extract motion
     print("\n📊 Extracting cat motion...")
-    extractor = CatMotionExtractor('assets/gifs/chipi-chipi-chapa-chapa.gif')
+    extractor = CatMotionExtractor(str(gif_path))
     motion_data = extractor.extract_motion_pattern()
     
     if not motion_data:
@@ -275,6 +301,7 @@ def run_official_simulation():
     
     # Run simulation
     controller = UnitreeOfficialController()
+    controller.motion_speed = args.speed  # Set speed from command line
     controller.create_scene()
     controller.load_unitree_robot()
     controller.apply_cat_motion(motion_data)
