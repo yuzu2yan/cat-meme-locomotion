@@ -16,7 +16,8 @@ Available controllers:
   cv-pose     : OpenCV-based animal pose estimation (no external dependencies)
   simple      : Simple direct keypoint-to-joint mapping
   official    : Original enhanced motion extractor
-  yolo        : YOLO-based pose estimation
+  dlc         : DeepLabCut-based animal pose estimation (computer vision)
+  yolo        : YOLO-based pose estimation (human pose model)
 
 Examples:
   # Run with OpenCV pose estimation (recommended)
@@ -48,6 +49,13 @@ Examples:
     # Official controller
     official_parser = subparsers.add_parser('official', help='Original enhanced controller')
     official_parser.add_argument('--gif', type=str, required=True, help='Path to GIF file')
+    
+    # DeepLabCut controller
+    dlc_parser = subparsers.add_parser('dlc', help='DeepLabCut-based animal pose estimation')
+    dlc_parser.add_argument('--gif', type=str, required=True, help='Path to GIF or video file')
+    dlc_parser.add_argument('--speed', type=float, default=1.0, help='Motion speed multiplier')
+    dlc_parser.add_argument('--amplitude', type=float, default=1.2, help='Motion amplitude multiplier')
+    dlc_parser.add_argument('--visualize', action='store_true', help='Save keypoint visualization')
     
     # YOLO controller
     yolo_parser = subparsers.add_parser('yolo', help='YOLO-based pose estimation')
@@ -88,6 +96,14 @@ Examples:
         from .unitree_genesis_official import main as run_official
         sys.argv = ['official', '--gif', args.gif]
         run_official()
+        
+    elif args.controller == 'dlc':
+        from .unitree_dlc_controller import run_dlc_simulation
+        sys.argv = ['dlc', '--gif', args.gif, '--speed', str(args.speed), 
+                    '--amplitude', str(args.amplitude)]
+        if args.visualize:
+            sys.argv.append('--visualize')
+        run_dlc_simulation()
         
     elif args.controller == 'yolo':
         from .unitree_yolo_controller import run_yolo_simulation

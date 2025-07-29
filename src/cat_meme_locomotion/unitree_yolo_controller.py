@@ -206,17 +206,32 @@ class UnitreeYOLOController:
                 positions = np.array(traj.positions)
                 confidences = np.array(traj.confidences)
                 
-                # Filter out low confidence detections
-                mask = confidences > 0.3
-                if np.any(mask):
-                    # Normalize to [0, 1]
-                    min_vals = np.min(positions[mask], axis=0)
-                    max_vals = np.max(positions[mask], axis=0)
-                    normalized = (positions - min_vals) / (max_vals - min_vals + 1e-6)
+                # Only process keypoints with some valid detections
+                valid_indices = confidences > 0.3
+                if np.any(valid_indices):
+                    # Find valid positions
+                    valid_positions = positions[valid_indices]
                     
-                    # Apply confidence weighting
-                    normalized = normalized * confidences[:, np.newaxis]
-                    normalized_trajectories[name] = normalized
+                    if len(valid_positions) > 0:
+                        # Normalize to [0, 1] based on valid positions only
+                        min_vals = np.min(valid_positions, axis=0)
+                        max_vals = np.max(valid_positions, axis=0)
+                        
+                        # Avoid division by zero
+                        range_vals = max_vals - min_vals
+                        range_vals[range_vals < 1e-6] = 1.0
+                        
+                        # Normalize all positions
+                        normalized = (positions - min_vals) / range_vals
+                        
+                        # Clip to [0, 1] range
+                        normalized = np.clip(normalized, 0, 1)
+                        
+                        # Apply confidence weighting
+                        normalized = normalized * confidences[:, np.newaxis]
+                        
+                        normalized_trajectories[name] = normalized
+                        print(f"   ✓ {name}: {np.sum(valid_indices)} valid frames")
         
         # Control loop
         last_target = self.default_dof_pos.clone()
@@ -228,7 +243,10 @@ class UnitreeYOLOController:
             # Calculate target positions
             target_dof_pos = self.default_dof_pos.clone()
             
-            # Front legs - use wrist/paw keypoints
+            # Use a cyclic motion pattern as fallback
+            phase = (motion_frame / max_frames) * 2 * np.pi
+            
+            # Front legs - use wrist/ankle keypoints (human pose mapped to animal legs)
             if 'left_wrist' in normalized_trajectories and motion_frame < len(normalized_trajectories['left_wrist']):
                 traj = normalized_trajectories['left_wrist'][motion_frame]
                 if np.sum(traj) > 0:  # Has valid data
@@ -236,6 +254,11 @@ class UnitreeYOLOController:
                     # Map to thigh and calf joints with amplification
                     target_dof_pos[4] = 0.2 + self.motion_amplitude * (1 - y_norm)  # FL_thigh
                     target_dof_pos[5] = -2.2 + self.motion_amplitude * 0.5 * y_norm  # FL_calf
+            else:
+                # Fallback motion
+                y_norm = 0.5 + 0.3 * np.sin(phase)
+                target_dof_pos[4] = 0.2 + self.motion_amplitude * 0.6 * (1 - y_norm)
+                target_dof_pos[5] = -1.8 + self.motion_amplitude * 0.4 * y_norm
             
             if 'right_wrist' in normalized_trajectories and motion_frame < len(normalized_trajectories['right_wrist']):
                 traj = normalized_trajectories['right_wrist'][motion_frame]
@@ -243,14 +266,24 @@ class UnitreeYOLOController:
                     y_norm = traj[1]
                     target_dof_pos[1] = 0.2 + self.motion_amplitude * (1 - y_norm)  # FR_thigh
                     target_dof_pos[2] = -2.2 + self.motion_amplitude * 0.5 * y_norm  # FR_calf
+            else:
+                # Fallback motion (offset)
+                y_norm = 0.5 + 0.3 * np.sin(phase + np.pi)
+                target_dof_pos[1] = 0.2 + self.motion_amplitude * 0.6 * (1 - y_norm)
+                target_dof_pos[2] = -1.8 + self.motion_amplitude * 0.4 * y_norm
             
-            # Rear legs - use ankle/paw keypoints
+            # Rear legs - use ankle keypoints
             if 'left_ankle' in normalized_trajectories and motion_frame < len(normalized_trajectories['left_ankle']):
                 traj = normalized_trajectories['left_ankle'][motion_frame]
                 if np.sum(traj) > 0:
                     y_norm = traj[1]
                     target_dof_pos[10] = 0.4 + self.motion_amplitude * 1.2 * (1 - y_norm)  # RL_thigh
                     target_dof_pos[11] = -2.2 + self.motion_amplitude * 0.5 * y_norm  # RL_calf
+            else:
+                # Fallback motion
+                y_norm = 0.5 + 0.3 * np.sin(phase + np.pi/2)
+                target_dof_pos[10] = 0.4 + self.motion_amplitude * 0.8 * (1 - y_norm)
+                target_dof_pos[11] = -1.8 + self.motion_amplitude * 0.4 * y_norm
             
             if 'right_ankle' in normalized_trajectories and motion_frame < len(normalized_trajectories['right_ankle']):
                 traj = normalized_trajectories['right_ankle'][motion_frame]
@@ -258,6 +291,11 @@ class UnitreeYOLOController:
                     y_norm = traj[1]
                     target_dof_pos[7] = 0.4 + self.motion_amplitude * 1.2 * (1 - y_norm)  # RR_thigh
                     target_dof_pos[8] = -2.2 + self.motion_amplitude * 0.5 * y_norm  # RR_calf
+            else:
+                # Fallback motion
+                y_norm = 0.5 + 0.3 * np.sin(phase - np.pi/2)
+                target_dof_pos[7] = 0.4 + self.motion_amplitude * 0.8 * (1 - y_norm)
+                target_dof_pos[8] = -1.8 + self.motion_amplitude * 0.4 * y_norm
             
             # Hip motion based on shoulder/body keypoints
             if 'left_shoulder' in normalized_trajectories and motion_frame < len(normalized_trajectories['left_shoulder']):
@@ -283,8 +321,8 @@ class UnitreeYOLOController:
                 target_dof_pos[10] += 0.2 * np.sin(phase_offset)  # RL
                 target_dof_pos[4] += 0.2 * np.sin(phase_offset + np.pi)  # FL
                 target_dof_pos[7] += 0.2 * np.sin(phase_offset + np.pi)  # RR
-            elif gait_pattern == 'gallop':
-                # Gallop: all legs move in similar phase
+            elif gait_pattern == 'hop':
+                # Hop: all legs move together
                 phase_offset = motion_frame * 0.15
                 for i in [1, 4, 7, 10]:  # All thigh joints
                     target_dof_pos[i] += 0.3 * np.sin(phase_offset)
@@ -324,7 +362,7 @@ def run_yolo_simulation():
         "--gif", 
         type=str, 
         default="assets/gifs/chipi-chipi-chapa-chapa.gif",
-        help="Path to the GIF file"
+        help="Path to the GIF or video file (mp4, avi, etc.)"
     )
     parser.add_argument(
         "--model",
@@ -346,22 +384,31 @@ def run_yolo_simulation():
     )
     args = parser.parse_args()
     
-    # Validate GIF path
-    gif_path = Path(args.gif)
-    if not gif_path.exists():
-        print(f"❌ Error: GIF file not found: {gif_path}")
+    # Validate input file path
+    input_path = Path(args.gif)
+    if not input_path.exists():
+        print(f"❌ Error: Input file not found: {input_path}")
         return
+    
+    # Check if it's a video file
+    video_extensions = {'.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv'}
+    is_video = input_path.suffix.lower() in video_extensions
     
     print("🐱 Unitree Cat Motion with YOLO Pose Estimation")
     print("=" * 50)
-    print(f"📁 GIF: {gif_path}")
+    print(f"📁 Input: {input_path}")
+    print(f"📹 Type: {'Video' if is_video else 'GIF'}")
     print(f"🤖 Model: {args.model}")
     print(f"⚡ Speed: {args.speed}x")
     print(f"📏 Amplitude: {args.amplitude}x")
     
     # Extract motion with YOLO
     print("\n📊 Extracting motion with YOLO pose detection...")
-    extractor = YOLOPoseExtractor(str(gif_path), model_name=args.model)
+    # For videos, limit frames to avoid memory issues
+    if is_video:
+        extractor = YOLOPoseExtractor(str(input_path), model_name=args.model, max_frames=100, target_fps=10)
+    else:
+        extractor = YOLOPoseExtractor(str(input_path), model_name=args.model)
     
     # Analyze motion
     motion_data = extractor.analyze_motion()
@@ -380,17 +427,21 @@ def run_yolo_simulation():
     print("\n📸 Generating motion capture and tracking results...")
     
     # 1. Static keypoint visualization
-    output_path = f"outputs/yolo_keypoints_{gif_path.stem}.png"
+    output_path = f"outputs/yolo_keypoints_{input_path.stem}.png"
     extractor.visualize_keypoints(output_path)
     print(f"   ✓ Keypoint visualization saved")
     
-    # 2. Motion capture tracking GIF
-    gif_output_path = f"outputs/yolo_tracking_{gif_path.stem}.gif"
-    extractor.create_tracking_gif(gif_output_path)
+    # 2. Motion capture tracking GIF (always output as GIF even for video input)
+    gif_output_path = f"outputs/yolo_tracking_{input_path.stem}.gif"
+    # For videos, limit GIF frames to avoid huge files
+    if is_video:
+        extractor.create_tracking_gif(gif_output_path, max_frames=50)
+    else:
+        extractor.create_tracking_gif(gif_output_path)
     print(f"   ✓ Motion capture GIF saved")
     
     # 3. Learning metrics and performance
-    metrics_dir = f"outputs/yolo_metrics_{gif_path.stem}"
+    metrics_dir = f"outputs/yolo_metrics_{input_path.stem}"
     extractor.save_tracking_metrics(metrics_dir)
     print(f"   ✓ Learning metrics saved")
     
