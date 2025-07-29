@@ -1,47 +1,52 @@
 [project]
 name = "cat-meme-locomotion"
 version = "0.1.0"
-description = "Replicate cat meme movements on Spot robot in Genesis simulator"
+description = "Unitree robot controller that mimics cat movements from GIF animations"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+
 dependencies = [
-    "genesis-world>=0.2.0",
-    "torch>=2.0.0",
-    "trimesh>=4.0.0",
-    "numpy>=1.24.0",
+    "genesis-world>=0.2.1",
+    "numpy>=1.26.0",
     "opencv-python>=4.8.0",
-    "pillow>=10.0.0",
+    "Pillow>=10.0.0",
     "matplotlib>=3.7.0",
     "scipy>=1.11.0",
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "trimesh>=4.0.0",
+    "ultralytics>=8.0.0",
+    "imageio>=2.30.0",
+    "imageio-ffmpeg>=0.4.0",
 ]
 
-[project.scripts]
-cat-unitree = "cat_meme_locomotion.unitree_genesis_official:run_official_simulation"
-extract-motion = "cat_meme_locomotion.core.motion_extractor:main"
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "ruff>=0.1.0",
+    "black>=23.0.0",
+]
 
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=65", "wheel"]
+build-backend = "setuptools.build_meta"
 
-[tool.uv]
-dev-dependencies = [
-    "pytest>=7.4.0",
-    "black>=23.0.0",
-    "ruff>=0.1.0",
-    "mypy>=1.5.0",
-]
+[project.scripts]
+cat-locomotion = "cat_meme_locomotion.cli:main"
+cat-cv-pose = "cat_meme_locomotion.unitree_cv_pose_controller:run_cv_pose_simulation"
+cat-simple = "cat_meme_locomotion.unitree_ik_simple:run_simple_ik_simulation"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.ruff]
-line-length = 88
-target-version = "py39"
-select = ["E", "F", "I", "N", "W"]
+line-length = 100
+target-version = "py310"
 
 [tool.black]
-line-length = 88
-target-version = ["py39"]
-
-[tool.mypy]
-python_version = "3.9"
-warn_return_any = true
-warn_unused_configs = true
-ignore_missing_imports = true
+line-length = 100
+target-version = ["py310"]

@@ -41,8 +41,8 @@ class UnitreeOfficialController:
         
         # Control parameters from official example
         self.dt = 0.02  # 50Hz control frequency
-        self.kp = 30.0  # Increased position gain for snappier response
-        self.kd = 1.0   # Increased velocity gain for better damping
+        self.kp = 100.0  # Much higher position gain for stronger response
+        self.kd = 5.0   # Higher velocity gain for better damping
         
         # Motion speed multiplier
         self.motion_speed = 3.0  # Speed up motion 3x to match GIF
@@ -135,14 +135,18 @@ class UnitreeOfficialController:
                     joint = self.robot.get_joint(name)
                     if joint is not None:
                         self.motors_dof_idx.append(joint.dof_start)
+                        print(f"   ✓ Found joint '{name}' at DOF index {joint.dof_start}")
                     else:
                         # Try without _joint suffix
                         name_alt = name.replace("_joint", "")
                         joint = self.robot.get_joint(name_alt)
                         if joint is not None:
                             self.motors_dof_idx.append(joint.dof_start)
+                            print(f"   ✓ Found joint '{name_alt}' at DOF index {joint.dof_start}")
+                        else:
+                            print(f"   ✗ Joint '{name}' not found!")
                 
-                print(f"✅ Found {len(self.motors_dof_idx)} motor joints")
+                print(f"✅ Found {len(self.motors_dof_idx)}/{len(self.joint_names)} motor joints")
                 
                 # Set PD gains
                 self.robot.set_dofs_kp([self.kp] * len(self.motors_dof_idx), self.motors_dof_idx)
@@ -175,11 +179,14 @@ class UnitreeOfficialController:
         """Apply cat motion using official control approach."""
         self.motion_data = motion_data
         y_motion = motion_data['y_normalized']
+        amplitude = motion_data.get('amplitude', 0.2)
+        frequency = motion_data.get('frequency', 0.15)
         
         print("\n🎮 Starting simulation (Genesis official style)...")
         print("   • PD control with proper gains")
         print("   • Official standing posture")
         print("   • Cat-like bouncing motion")
+        print(f"   • Motion stats: amplitude={amplitude:.3f}, frequency={frequency:.3f}")
         print("   • Close viewer to exit\n")
         
         # Set initial pose
@@ -198,10 +205,15 @@ class UnitreeOfficialController:
         
         # Control loop
         while self.scene.viewer.is_alive():
-            # Get motion parameters
+            # Get motion parameters with interpolation
             # Speed up frame progression
-            motion_frame = int(self.frame_idx * self.motion_speed) % len(y_motion)
-            bounce = y_motion[motion_frame]
+            motion_time = (self.frame_idx * self.motion_speed) % len(y_motion)
+            motion_frame = int(motion_time)
+            next_frame = (motion_frame + 1) % len(y_motion)
+            
+            # Linear interpolation between frames for smoother motion
+            t_interp = motion_time - motion_frame
+            bounce = y_motion[motion_frame] * (1 - t_interp) + y_motion[next_frame] * t_interp
             
             # Time for gait phase (also speed up)
             t = self.frame_idx * self.dt * self.motion_speed
@@ -230,13 +242,13 @@ class UnitreeOfficialController:
                 target_dof_pos[hip_idx] = self.default_dof_pos[hip_idx] + 0.1 * np.sin(leg_phase)
                 
                 # Thigh joint - main bounce driver
-                # Increased amplitude for more dynamic motion
-                thigh_motion = 0.4 * bounce + 0.2
+                # Scale motion based on detected amplitude - INCREASED
+                thigh_motion = (0.5 + amplitude * 1.0) * bounce + 0.3
                 target_dof_pos[thigh_idx] = self.default_dof_pos[thigh_idx] - thigh_motion * np.sin(leg_phase)
                 
                 # Calf joint - coordinate with thigh
-                # Increased amplitude for snappier motion
-                calf_motion = 0.5 * bounce + 0.3
+                # Scale motion based on detected amplitude - INCREASED
+                calf_motion = (0.6 + amplitude * 1.0) * bounce + 0.4
                 target_dof_pos[calf_idx] = self.default_dof_pos[calf_idx] + calf_motion * np.sin(leg_phase - np.pi/4)
             
             # Apply position control
@@ -247,9 +259,16 @@ class UnitreeOfficialController:
             self.frame_idx += 1
             
             # Print progress
-            if self.frame_idx % 100 == 0:
+            if self.frame_idx % 50 == 0:
                 pos = self.robot.get_pos()
+                actual_pos = self.robot.get_dofs_position(self.motors_dof_idx)
                 print(f"   Frame {self.frame_idx}, Height: {pos[0, 2]:.3f}m, Bounce: {bounce:.2f}")
+                
+                # Debug: print target vs actual positions for thigh joints
+                if self.frame_idx % 200 == 0:
+                    print(f"   Target thigh positions: {target_dof_pos[1]:.3f}, {target_dof_pos[4]:.3f}, {target_dof_pos[7]:.3f}, {target_dof_pos[10]:.3f}")
+                    print(f"   Actual thigh positions: {actual_pos[0, 1]:.3f}, {actual_pos[0, 4]:.3f}, {actual_pos[0, 7]:.3f}, {actual_pos[0, 10]:.3f}")
+                    print(f"   Difference: {abs(target_dof_pos[1] - actual_pos[0, 1]):.3f}, {abs(target_dof_pos[4] - actual_pos[0, 4]):.3f}")
         
         print("\n✨ Simulation completed!")
 
@@ -298,6 +317,12 @@ def run_official_simulation():
     
     print(f"✅ Extracted {motion_data['num_frames']} frames")
     print(f"✅ Found {len(motion_data['peaks'])} bounces")
+    print(f"✅ Amplitude: {motion_data.get('amplitude', 0):.3f}")
+    print(f"✅ Frequency: {motion_data.get('frequency', 0):.3f}")
+    
+    # Check if motion is too subtle
+    if motion_data.get('amplitude', 0) < 0.05:
+        print("⚠️  Warning: Very low amplitude detected. Motion might be subtle.")
     
     # Run simulation
     controller = UnitreeOfficialController()
