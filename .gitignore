@@ -53,3 +53,5 @@ outputs/*.mp4
 # OS
 .DS_Store
 Thumbs.db
+
+.claude/

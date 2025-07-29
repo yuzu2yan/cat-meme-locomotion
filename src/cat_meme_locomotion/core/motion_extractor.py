@@ -31,20 +31,45 @@ class CatMotionExtractor:
         return self.frames
     
     def detect_cat_position(self, frame: np.ndarray) -> Optional[Tuple[int, int]]:
-        """Detect cat position in a single frame using contour detection."""
+        """Detect cat position in a single frame using improved detection."""
         gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-        edges = cv2.Canny(gray, 50, 150)
+        
+        # Apply Gaussian blur to reduce noise
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+        
+        # Try adaptive thresholding for better edge detection
+        thresh = cv2.adaptiveThreshold(
+            blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+            cv2.THRESH_BINARY_INV, 11, 2
+        )
+        
+        # Find contours
         contours, _ = cv2.findContours(
-            edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+            thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
         )
         
         if contours:
-            largest_contour = max(contours, key=cv2.contourArea)
-            M = cv2.moments(largest_contour)
-            if M["m00"] != 0:
-                cx = int(M["m10"] / M["m00"])
-                cy = int(M["m01"] / M["m00"])
-                return cx, cy
+            # Filter contours by area (remove very small ones)
+            min_area = frame.shape[0] * frame.shape[1] * 0.01  # At least 1% of frame
+            valid_contours = [c for c in contours if cv2.contourArea(c) > min_area]
+            
+            if valid_contours:
+                # Get the largest contour
+                largest_contour = max(valid_contours, key=cv2.contourArea)
+                M = cv2.moments(largest_contour)
+                if M["m00"] != 0:
+                    cx = int(M["m10"] / M["m00"])
+                    cy = int(M["m01"] / M["m00"])
+                    return cx, cy
+        
+        # Fallback: if no contour found, use center of mass of non-background pixels
+        _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        M = cv2.moments(binary)
+        if M["m00"] > 0:
+            cx = int(M["m10"] / M["m00"])
+            cy = int(M["m01"] / M["m00"])
+            return cx, cy
+            
         return None
     
     def extract_motion_pattern(self) -> Dict:
