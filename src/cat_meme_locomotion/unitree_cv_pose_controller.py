@@ -369,7 +369,7 @@ def run_cv_pose_simulation():
     
     # Extract motion with CV-based method
     print("\n📊 Extracting motion with CV-based pose detection...")
-    extractor = CVAnimalPoseExtractor(str(gif_path))
+    extractor = CVAnimalPoseExtractor(str(gif_path))  # Works with both GIF and video files
     
     # Analyze motion
     motion_data = extractor.analyze_motion()

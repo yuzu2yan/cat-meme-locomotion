@@ -4,7 +4,7 @@
 import numpy as np
 import torch
 import math
-from typing import Dict, List
+from typing import Dict, List, Optional
 from pathlib import Path
 
 # Apply igl patch before importing genesis
@@ -25,13 +25,13 @@ if _original_signed_distance:
     igl.signed_distance = patched_signed_distance
 
 import genesis as gs
-from cat_meme_locomotion.core.yolo_pose_extractor import YOLOPoseExtractor, KeypointTrajectory
+from cat_meme_locomotion.core.simple_yolo_pose_extractor import SimpleYOLOPoseExtractor as ImprovedYOLOPoseExtractor, KeypointTrajectory
 
 
 class UnitreeYOLOController:
     """Controller using YOLO pose estimation for motion control."""
     
-    def __init__(self, model_name: str = 'yolov8x-pose.pt'):
+    def __init__(self, model_name: str = 'yolov8x-pose.pt', use_animal_mapping: bool = True):
         # Initialize Genesis
         gs.init(backend=gs.cuda)
         
@@ -41,6 +41,7 @@ class UnitreeYOLOController:
         self.keypoint_trajectories = None
         self.frame_idx = 0
         self.model_name = model_name
+        self.use_animal_mapping = use_animal_mapping
         
         # Control parameters
         self.dt = 0.01  # 100Hz control frequency
@@ -170,14 +171,17 @@ class UnitreeYOLOController:
         with open("go2_fixed.urdf", "w") as f:
             f.write(urdf_content)
     
-    def apply_yolo_motion(self, motion_data: Dict, keypoint_trajectories: Dict[str, KeypointTrajectory]):
+    def apply_yolo_motion(self, motion_data: Dict, keypoint_trajectories: Dict[str, KeypointTrajectory], 
+                         animal_keypoint_trajectories: Optional[Dict[str, KeypointTrajectory]] = None):
         """Apply motion from YOLO pose estimation."""
         self.motion_data = motion_data
         self.keypoint_trajectories = keypoint_trajectories
+        self.animal_keypoint_trajectories = animal_keypoint_trajectories or keypoint_trajectories
         
         print("\n🎮 Starting simulation with YOLO pose control...")
         print(f"   • Model: {self.model_name}")
-        print(f"   • Detected keypoints: {len(keypoint_trajectories)}")
+        print(f"   • Detected keypoints: {len(animal_keypoint_trajectories or keypoint_trajectories)}")
+        print(f"   • Using animal mapping: {self.use_animal_mapping}")
         print(f"   • Gait pattern: {motion_data.get('gait_pattern', 'unknown')}")
         print(f"   • Average confidence: {motion_data.get('avg_confidence', 0):.2f}")
         print("   • Close viewer to exit\n")
@@ -197,11 +201,12 @@ class UnitreeYOLOController:
         print("🏃 Starting motion...")
         
         # Get max frames
-        max_frames = max(len(traj.positions) for traj in keypoint_trajectories.values())
+        trajectories_to_use = self.animal_keypoint_trajectories if self.use_animal_mapping else self.keypoint_trajectories
+        max_frames = max(len(traj.positions) for traj in trajectories_to_use.values())
         
         # Pre-compute normalized trajectories with confidence weighting
         normalized_trajectories = {}
-        for name, traj in keypoint_trajectories.items():
+        for name, traj in trajectories_to_use.items():
             if traj.positions and len(traj.positions) > 0:
                 positions = np.array(traj.positions)
                 confidences = np.array(traj.confidences)
@@ -246,71 +251,12 @@ class UnitreeYOLOController:
             # Use a cyclic motion pattern as fallback
             phase = (motion_frame / max_frames) * 2 * np.pi
             
-            # Front legs - use wrist/ankle keypoints (human pose mapped to animal legs)
-            if 'left_wrist' in normalized_trajectories and motion_frame < len(normalized_trajectories['left_wrist']):
-                traj = normalized_trajectories['left_wrist'][motion_frame]
-                if np.sum(traj) > 0:  # Has valid data
-                    y_norm = traj[1]  # Y coordinate
-                    # Map to thigh and calf joints with amplification
-                    target_dof_pos[4] = 0.2 + self.motion_amplitude * (1 - y_norm)  # FL_thigh
-                    target_dof_pos[5] = -2.2 + self.motion_amplitude * 0.5 * y_norm  # FL_calf
+            if self.use_animal_mapping:
+                # Use animal-specific keypoints
+                self._apply_animal_motion(target_dof_pos, normalized_trajectories, motion_frame, phase)
             else:
-                # Fallback motion
-                y_norm = 0.5 + 0.3 * np.sin(phase)
-                target_dof_pos[4] = 0.2 + self.motion_amplitude * 0.6 * (1 - y_norm)
-                target_dof_pos[5] = -1.8 + self.motion_amplitude * 0.4 * y_norm
-            
-            if 'right_wrist' in normalized_trajectories and motion_frame < len(normalized_trajectories['right_wrist']):
-                traj = normalized_trajectories['right_wrist'][motion_frame]
-                if np.sum(traj) > 0:
-                    y_norm = traj[1]
-                    target_dof_pos[1] = 0.2 + self.motion_amplitude * (1 - y_norm)  # FR_thigh
-                    target_dof_pos[2] = -2.2 + self.motion_amplitude * 0.5 * y_norm  # FR_calf
-            else:
-                # Fallback motion (offset)
-                y_norm = 0.5 + 0.3 * np.sin(phase + np.pi)
-                target_dof_pos[1] = 0.2 + self.motion_amplitude * 0.6 * (1 - y_norm)
-                target_dof_pos[2] = -1.8 + self.motion_amplitude * 0.4 * y_norm
-            
-            # Rear legs - use ankle keypoints
-            if 'left_ankle' in normalized_trajectories and motion_frame < len(normalized_trajectories['left_ankle']):
-                traj = normalized_trajectories['left_ankle'][motion_frame]
-                if np.sum(traj) > 0:
-                    y_norm = traj[1]
-                    target_dof_pos[10] = 0.4 + self.motion_amplitude * 1.2 * (1 - y_norm)  # RL_thigh
-                    target_dof_pos[11] = -2.2 + self.motion_amplitude * 0.5 * y_norm  # RL_calf
-            else:
-                # Fallback motion
-                y_norm = 0.5 + 0.3 * np.sin(phase + np.pi/2)
-                target_dof_pos[10] = 0.4 + self.motion_amplitude * 0.8 * (1 - y_norm)
-                target_dof_pos[11] = -1.8 + self.motion_amplitude * 0.4 * y_norm
-            
-            if 'right_ankle' in normalized_trajectories and motion_frame < len(normalized_trajectories['right_ankle']):
-                traj = normalized_trajectories['right_ankle'][motion_frame]
-                if np.sum(traj) > 0:
-                    y_norm = traj[1]
-                    target_dof_pos[7] = 0.4 + self.motion_amplitude * 1.2 * (1 - y_norm)  # RR_thigh
-                    target_dof_pos[8] = -2.2 + self.motion_amplitude * 0.5 * y_norm  # RR_calf
-            else:
-                # Fallback motion
-                y_norm = 0.5 + 0.3 * np.sin(phase - np.pi/2)
-                target_dof_pos[7] = 0.4 + self.motion_amplitude * 0.8 * (1 - y_norm)
-                target_dof_pos[8] = -1.8 + self.motion_amplitude * 0.4 * y_norm
-            
-            # Hip motion based on shoulder/body keypoints
-            if 'left_shoulder' in normalized_trajectories and motion_frame < len(normalized_trajectories['left_shoulder']):
-                traj = normalized_trajectories['left_shoulder'][motion_frame]
-                if np.sum(traj) > 0:
-                    x_norm = traj[0]
-                    target_dof_pos[3] = 0.3 * (x_norm - 0.5)  # FL_hip
-                    target_dof_pos[9] = 0.3 * (x_norm - 0.5)  # RL_hip
-            
-            if 'right_shoulder' in normalized_trajectories and motion_frame < len(normalized_trajectories['right_shoulder']):
-                traj = normalized_trajectories['right_shoulder'][motion_frame]
-                if np.sum(traj) > 0:
-                    x_norm = traj[0]
-                    target_dof_pos[0] = 0.3 * (0.5 - x_norm)  # FR_hip (opposite)
-                    target_dof_pos[6] = 0.3 * (0.5 - x_norm)  # RR_hip
+                # Original human keypoint mapping
+                self._apply_human_motion(target_dof_pos, normalized_trajectories, motion_frame, phase)
             
             # Add gait-specific adjustments
             gait_pattern = self.motion_data.get('gait_pattern', 'walk')
@@ -349,6 +295,133 @@ class UnitreeYOLOController:
                 print(f"   Frame {self.frame_idx}, Height: {height:.3f}m, Speed: {speed:.3f}m/s")
         
         print("\n✨ Simulation completed!")
+    
+    def _apply_animal_motion(self, target_dof_pos: torch.Tensor, normalized_trajectories: Dict, 
+                           motion_frame: int, phase: float):
+        """Apply motion using animal keypoint mapping."""
+        # Front legs - use front paw keypoints
+        if 'front_left_paw' in normalized_trajectories and motion_frame < len(normalized_trajectories['front_left_paw']):
+            traj = normalized_trajectories['front_left_paw'][motion_frame]
+            if np.sum(traj) > 0:
+                y_norm = traj[1]
+                # Natural quadruped motion
+                target_dof_pos[4] = 0.3 + self.motion_amplitude * 0.8 * (1 - y_norm)  # FL_thigh
+                target_dof_pos[5] = -2.0 + self.motion_amplitude * 0.6 * y_norm  # FL_calf
+        else:
+            # Fallback motion
+            y_norm = 0.5 + 0.3 * np.sin(phase)
+            target_dof_pos[4] = 0.3 + self.motion_amplitude * 0.5 * (1 - y_norm)
+            target_dof_pos[5] = -1.8 + self.motion_amplitude * 0.3 * y_norm
+        
+        if 'front_right_paw' in normalized_trajectories and motion_frame < len(normalized_trajectories['front_right_paw']):
+            traj = normalized_trajectories['front_right_paw'][motion_frame]
+            if np.sum(traj) > 0:
+                y_norm = traj[1]
+                target_dof_pos[1] = 0.3 + self.motion_amplitude * 0.8 * (1 - y_norm)  # FR_thigh
+                target_dof_pos[2] = -2.0 + self.motion_amplitude * 0.6 * y_norm  # FR_calf
+        else:
+            y_norm = 0.5 + 0.3 * np.sin(phase + np.pi)
+            target_dof_pos[1] = 0.3 + self.motion_amplitude * 0.5 * (1 - y_norm)
+            target_dof_pos[2] = -1.8 + self.motion_amplitude * 0.3 * y_norm
+        
+        # Back legs - use back paw keypoints
+        if 'back_left_paw' in normalized_trajectories and motion_frame < len(normalized_trajectories['back_left_paw']):
+            traj = normalized_trajectories['back_left_paw'][motion_frame]
+            if np.sum(traj) > 0:
+                y_norm = traj[1]
+                target_dof_pos[10] = 0.5 + self.motion_amplitude * 1.0 * (1 - y_norm)  # RL_thigh
+                target_dof_pos[11] = -2.0 + self.motion_amplitude * 0.6 * y_norm  # RL_calf
+        else:
+            y_norm = 0.5 + 0.3 * np.sin(phase + np.pi/2)
+            target_dof_pos[10] = 0.5 + self.motion_amplitude * 0.7 * (1 - y_norm)
+            target_dof_pos[11] = -1.8 + self.motion_amplitude * 0.3 * y_norm
+        
+        if 'back_right_paw' in normalized_trajectories and motion_frame < len(normalized_trajectories['back_right_paw']):
+            traj = normalized_trajectories['back_right_paw'][motion_frame]
+            if np.sum(traj) > 0:
+                y_norm = traj[1]
+                target_dof_pos[7] = 0.5 + self.motion_amplitude * 1.0 * (1 - y_norm)  # RR_thigh
+                target_dof_pos[8] = -2.0 + self.motion_amplitude * 0.6 * y_norm  # RR_calf
+        else:
+            y_norm = 0.5 + 0.3 * np.sin(phase - np.pi/2)
+            target_dof_pos[7] = 0.5 + self.motion_amplitude * 0.7 * (1 - y_norm)
+            target_dof_pos[8] = -1.8 + self.motion_amplitude * 0.3 * y_norm
+        
+        # Hip motion based on spine/body keypoints
+        if 'spine_center' in normalized_trajectories and motion_frame < len(normalized_trajectories['spine_center']):
+            traj = normalized_trajectories['spine_center'][motion_frame]
+            if np.sum(traj) > 0:
+                x_norm = traj[0]
+                # Subtle hip motion for balance
+                hip_motion = 0.2 * (x_norm - 0.5)
+                target_dof_pos[0] = hip_motion  # FR_hip
+                target_dof_pos[3] = -hip_motion  # FL_hip
+                target_dof_pos[6] = hip_motion  # RR_hip  
+                target_dof_pos[9] = -hip_motion  # RL_hip
+    
+    def _apply_human_motion(self, target_dof_pos: torch.Tensor, normalized_trajectories: Dict, 
+                          motion_frame: int, phase: float):
+        """Apply motion using human keypoint mapping (original method)."""
+        # Front legs - use wrist keypoints
+        if 'left_wrist' in normalized_trajectories and motion_frame < len(normalized_trajectories['left_wrist']):
+            traj = normalized_trajectories['left_wrist'][motion_frame]
+            if np.sum(traj) > 0:
+                y_norm = traj[1]
+                target_dof_pos[4] = 0.2 + self.motion_amplitude * (1 - y_norm)  # FL_thigh
+                target_dof_pos[5] = -2.2 + self.motion_amplitude * 0.5 * y_norm  # FL_calf
+        else:
+            y_norm = 0.5 + 0.3 * np.sin(phase)
+            target_dof_pos[4] = 0.2 + self.motion_amplitude * 0.6 * (1 - y_norm)
+            target_dof_pos[5] = -1.8 + self.motion_amplitude * 0.4 * y_norm
+        
+        if 'right_wrist' in normalized_trajectories and motion_frame < len(normalized_trajectories['right_wrist']):
+            traj = normalized_trajectories['right_wrist'][motion_frame]
+            if np.sum(traj) > 0:
+                y_norm = traj[1]
+                target_dof_pos[1] = 0.2 + self.motion_amplitude * (1 - y_norm)  # FR_thigh
+                target_dof_pos[2] = -2.2 + self.motion_amplitude * 0.5 * y_norm  # FR_calf
+        else:
+            y_norm = 0.5 + 0.3 * np.sin(phase + np.pi)
+            target_dof_pos[1] = 0.2 + self.motion_amplitude * 0.6 * (1 - y_norm)
+            target_dof_pos[2] = -1.8 + self.motion_amplitude * 0.4 * y_norm
+        
+        # Rear legs - use ankle keypoints
+        if 'left_ankle' in normalized_trajectories and motion_frame < len(normalized_trajectories['left_ankle']):
+            traj = normalized_trajectories['left_ankle'][motion_frame]
+            if np.sum(traj) > 0:
+                y_norm = traj[1]
+                target_dof_pos[10] = 0.4 + self.motion_amplitude * 1.2 * (1 - y_norm)  # RL_thigh
+                target_dof_pos[11] = -2.2 + self.motion_amplitude * 0.5 * y_norm  # RL_calf
+        else:
+            y_norm = 0.5 + 0.3 * np.sin(phase + np.pi/2)
+            target_dof_pos[10] = 0.4 + self.motion_amplitude * 0.8 * (1 - y_norm)
+            target_dof_pos[11] = -1.8 + self.motion_amplitude * 0.4 * y_norm
+        
+        if 'right_ankle' in normalized_trajectories and motion_frame < len(normalized_trajectories['right_ankle']):
+            traj = normalized_trajectories['right_ankle'][motion_frame]
+            if np.sum(traj) > 0:
+                y_norm = traj[1]
+                target_dof_pos[7] = 0.4 + self.motion_amplitude * 1.2 * (1 - y_norm)  # RR_thigh
+                target_dof_pos[8] = -2.2 + self.motion_amplitude * 0.5 * y_norm  # RR_calf
+        else:
+            y_norm = 0.5 + 0.3 * np.sin(phase - np.pi/2)
+            target_dof_pos[7] = 0.4 + self.motion_amplitude * 0.8 * (1 - y_norm)
+            target_dof_pos[8] = -1.8 + self.motion_amplitude * 0.4 * y_norm
+        
+        # Hip motion based on shoulder keypoints
+        if 'left_shoulder' in normalized_trajectories and motion_frame < len(normalized_trajectories['left_shoulder']):
+            traj = normalized_trajectories['left_shoulder'][motion_frame]
+            if np.sum(traj) > 0:
+                x_norm = traj[0]
+                target_dof_pos[3] = 0.3 * (x_norm - 0.5)  # FL_hip
+                target_dof_pos[9] = 0.3 * (x_norm - 0.5)  # RL_hip
+        
+        if 'right_shoulder' in normalized_trajectories and motion_frame < len(normalized_trajectories['right_shoulder']):
+            traj = normalized_trajectories['right_shoulder'][motion_frame]
+            if np.sum(traj) > 0:
+                x_norm = traj[0]
+                target_dof_pos[0] = 0.3 * (0.5 - x_norm)  # FR_hip (opposite)
+                target_dof_pos[6] = 0.3 * (0.5 - x_norm)  # RR_hip
 
 
 def run_yolo_simulation():
@@ -406,9 +479,9 @@ def run_yolo_simulation():
     print("\n📊 Extracting motion with YOLO pose detection...")
     # For videos, limit frames to avoid memory issues
     if is_video:
-        extractor = YOLOPoseExtractor(str(input_path), model_name=args.model, max_frames=100, target_fps=10)
+        extractor = ImprovedYOLOPoseExtractor(str(input_path), model_name=args.model, max_frames=100, target_fps=10)
     else:
-        extractor = YOLOPoseExtractor(str(input_path), model_name=args.model)
+        extractor = ImprovedYOLOPoseExtractor(str(input_path), model_name=args.model)
     
     # Analyze motion
     motion_data = extractor.analyze_motion()
@@ -426,29 +499,36 @@ def run_yolo_simulation():
     # Always generate tracking results
     print("\n📸 Generating motion capture and tracking results...")
     
-    # 1. Static keypoint visualization
-    output_path = f"outputs/yolo_keypoints_{input_path.stem}.png"
-    extractor.visualize_keypoints(output_path)
-    print(f"   ✓ Keypoint visualization saved")
+    try:
+        # 1. Static keypoint visualization
+        output_path = f"outputs/yolo_keypoints_{input_path.stem}.png"
+        extractor.visualize_keypoints(output_path)
+        print(f"   ✓ Keypoint visualization saved")
+    except Exception as e:
+        print(f"   ⚠️  Visualization failed: {e}")
     
-    # 2. Motion capture tracking GIF (always output as GIF even for video input)
-    gif_output_path = f"outputs/yolo_tracking_{input_path.stem}.gif"
-    # For videos, limit GIF frames to avoid huge files
-    if is_video:
-        extractor.create_tracking_gif(gif_output_path, max_frames=50)
-    else:
-        extractor.create_tracking_gif(gif_output_path)
-    print(f"   ✓ Motion capture GIF saved")
+    try:
+        # 2. Motion capture tracking GIF (always GIF output)
+        gif_output_path = f"outputs/yolo_tracking_{input_path.stem}.gif"
+        # For videos, limit frames to avoid huge GIF files
+        if is_video:
+            extractor.create_tracking_gif(gif_output_path, fps=10, max_frames=100)
+        else:
+            extractor.create_tracking_gif(gif_output_path)
+        print(f"   ✓ Motion capture GIF saved: {gif_output_path}")
+    except Exception as e:
+        print(f"   ⚠️  Tracking GIF failed: {e}")
     
-    # 3. Learning metrics and performance
-    metrics_dir = f"outputs/yolo_metrics_{input_path.stem}"
-    extractor.save_tracking_metrics(metrics_dir)
-    print(f"   ✓ Learning metrics saved")
+    # Skip metrics for now as method doesn't exist in improved extractor
+    # try:
+    #     # 3. Learning metrics and performance
+    #     metrics_dir = f"outputs/yolo_metrics_{input_path.stem}"
+    #     extractor.save_tracking_metrics(metrics_dir)
+    #     print(f"   ✓ Learning metrics saved")
+    # except Exception as e:
+    #     print(f"   ⚠️  Metrics failed: {e}")
     
-    print(f"\n📁 All results saved to: outputs/")
-    print(f"   • Keypoints: {output_path}")
-    print(f"   • Motion GIF: {gif_output_path}")
-    print(f"   • Metrics: {metrics_dir}/")
+    print(f"\n📁 Results saved to: outputs/")
     
     # Run simulation
     controller = UnitreeYOLOController(model_name=args.model)
@@ -456,7 +536,9 @@ def run_yolo_simulation():
     controller.motion_amplitude = args.amplitude
     controller.create_scene()
     controller.load_unitree_robot()
-    controller.apply_yolo_motion(motion_data, extractor.keypoint_trajectories)
+    # Pass both human and animal keypoint trajectories
+    animal_trajectories = extractor.animal_keypoint_trajectories if hasattr(extractor, 'animal_keypoint_trajectories') else None
+    controller.apply_yolo_motion(motion_data, extractor.keypoint_trajectories, animal_trajectories)
 
 
 if __name__ == "__main__":
