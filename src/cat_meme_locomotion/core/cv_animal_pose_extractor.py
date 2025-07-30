@@ -62,9 +62,9 @@ class CVAnimalPoseExtractor:
         ('left_shoulder', 'right_shoulder'), ('left_hip', 'right_hip')
     ]
     
-    def __init__(self, gif_path: str):
+    def __init__(self, input_path: str):
         """Initialize CV-based pose extractor."""
-        self.gif_path = gif_path
+        self.input_path = input_path
         self.frames: List[np.ndarray] = []
         self.keypoint_trajectories: Dict[str, KeypointTrajectory] = {}
         self.motion_data: Dict = {}
@@ -78,21 +78,74 @@ class CVAnimalPoseExtractor:
         
         print(f"🔧 Initialized CV-based animal pose extractor")
         
-    def extract_frames(self) -> List[np.ndarray]:
-        """Extract all frames from the GIF file."""
-        gif = Image.open(self.gif_path)
-        self.frames = []
+        # Detect file type
+        self.file_ext = Path(self.input_path).suffix.lower()
+        self.is_video = self.file_ext in ['.mp4', '.avi', '.mov', '.mkv', '.webm']
         
-        try:
-            while True:
-                frame = np.array(gif.convert('RGB'))
-                self.frames.append(frame)
-                gif.seek(gif.tell() + 1)
-        except EOFError:
-            pass
+    def extract_frames(self) -> List[np.ndarray]:
+        """Extract all frames from the input file (GIF or video)."""
+        if self.file_ext == '.gif':
+            # Extract from GIF
+            gif = Image.open(self.input_path)
+            self.frames = []
             
-        print(f"📽️ Extracted {len(self.frames)} frames from GIF")
+            try:
+                while True:
+                    frame = np.array(gif.convert('RGB'))
+                    self.frames.append(frame)
+                    gif.seek(gif.tell() + 1)
+            except EOFError:
+                pass
+                
+            print(f"📽️ Extracted {len(self.frames)} frames from GIF")
+            
+        elif self.is_video:
+            # Extract from video
+            self.frames = self._extract_frames_from_video(self.input_path)
+        else:
+            raise ValueError(f"Unsupported file format: {self.file_ext}")
+            
         return self.frames
+    
+    def _extract_frames_from_video(self, video_path: str, max_frames: int = 300, 
+                                  target_fps: int = 15) -> List[np.ndarray]:
+        """Extract frames from a video file."""
+        cap = cv2.VideoCapture(video_path)
+        
+        if not cap.isOpened():
+            raise ValueError(f"Cannot open video file: {video_path}")
+        
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        
+        print(f"Video info: {total_frames} frames @ {fps:.1f} FPS")
+        
+        frame_skip = 1
+        if target_fps and target_fps < fps:
+            frame_skip = int(fps / target_fps)
+            
+        frames = []
+        frame_count = 0
+        
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+                
+            if frame_count % frame_skip == 0:
+                # Convert BGR to RGB
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                frames.append(frame_rgb)
+                
+                if max_frames and len(frames) >= max_frames:
+                    break
+            
+            frame_count += 1
+            
+        cap.release()
+        
+        print(f"📽️ Extracted {len(frames)} frames from video")
+        return frames
     
     def detect_animal_contour(self, frame: np.ndarray) -> Optional[np.ndarray]:
         """Detect the main animal contour in the frame."""

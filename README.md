@@ -1,210 +1,273 @@
 # Cat Meme Locomotion 🐱🤖
 
-Unitree Go2ロボットが猫のGIF/動画の動きを真似するコントローラー。複数の姿勢推定手法をサポートし、自動的にモーションキャプチャと学習結果を生成します。
+A controller that enables Unitree Go2 robots to mimic movements from cat GIFs/videos. Supports multiple pose estimation methods and automatically generates motion capture and learning results.
 
 <p align="center">
   <img src="assets/demo.gif" alt="Demo" width="600">
 </p>
 
-## 特徴 ✨
+## Features ✨
 
-- 🎬 **GIFと動画（MP4）の両方に対応**
-- 🤖 **複数の姿勢推定手法**:
-  - **DeepLabCut (DLC)**: 動物専用のコンピュータビジョン手法
-  - **YOLO**: 深層学習ベースの姿勢推定（人間用モデル）
-  - **CV-Pose**: OpenCVベースのシンプルな動物姿勢推定
-  - **Simple**: 直接的なキーポイントマッピング
-- 📊 **自動生成される出力**:
-  - モーションキャプチャGIF
-  - キーポイント可視化
-  - 学習メトリクス（信頼度、検出数の推移）
-- 🎮 **リアルタイムシミュレーション**: Genesis物理エンジン使用
+- 🎬 **Supports both GIFs and videos (MP4)**
+- 🤖 **Multiple pose estimation methods**:
+  - **YOLO**: State-of-the-art pose estimation with human-to-animal keypoint mapping
+  - **YOLO**: Deep learning-based pose estimation (human model)
+  - **CV-Pose**: Simple OpenCV-based animal pose estimation
+  - **Simple**: Direct keypoint mapping
+- 📊 **Automatically generated outputs**:
+  - Motion capture GIFs
+  - Keypoint visualization
+  - Learning metrics (confidence, detection count trends)
+- 🎮 **Real-time simulation**: Using Genesis physics engine
 
-## インストール 🚀
+### Example Input GIFs
+<p align="center">
+  <img src="assets/gifs/happy-cat.gif" alt="Happy Cat" width="200">
+  <img src="assets/gifs/dancing-dog.gif" alt="Dancing Dog" width="200">
+  <img src="assets/gifs/chipi-chipi-chapa-chapa.gif" alt="Chipi Chipi" width="200">
+</p>
 
-### 必要要件
+## Installation 🚀
+
+### Requirements
 
 - Python 3.10+
-- CUDA対応GPU（推奨）
+- CUDA-compatible GPU (recommended)
 - Ubuntu 20.04/22.04
 
-### UV（推奨）を使用したインストール
+### Installation with UV (recommended)
 
 ```bash
-# リポジトリをクローン
+# Clone the repository
 git clone https://github.com/yourusername/cat-meme-locomotion.git
 cd cat-meme-locomotion
 
-# UVをインストール（まだの場合）
+# Install UV (if not already installed)
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# 依存関係をインストール
+# Install dependencies
 uv pip install -e .
 ```
 
-### 従来のpipを使用したインストール
+### Installation with traditional pip
 
 ```bash
-# 仮想環境を作成
+# Create virtual environment
 python -m venv venv
-source venv/bin/activate  # Windowsの場合: venv\Scripts\activate
+source venv/bin/activate  # Windows: venv\Scripts\activate
 
-# インストール
+# Install
 pip install -e .
 ```
 
-## 使い方 🎮
+## Usage 🎮
 
-### 基本的な使用方法
+### Basic Usage
 
 ```bash
-# DeepLabCut（動物に最適）でGIFを処理
-uv run cat-locomotion dlc --gif assets/gifs/dancing-dog.gif
+# Process GIF with YOLO pose estimation (real keypoint detection)
+uv run cat-locomotion yolo --gif assets/gifs/dancing-dog.gif --model yolov8x-pose.pt
 
-# YOLOでMP4動画を処理
-uv run cat-locomotion yolo --gif assets/mp4/grey-kitten-lying.mp4
+# Process GIF with CV-based pose estimation (no ML required)
+uv run cat-locomotion cv-pose --gif assets/gifs/dancing-dog.gif
 
-# パラメータを調整
-uv run cat-locomotion dlc --gif assets/gifs/happy-cat.gif --speed 1.5 --amplitude 2.0
+# Process MP4 video with YOLO (outputs MP4)
+uv run cat-locomotion yolo --gif assets/mp4/kitten-walking.mp4 --model yolov8n-pose.pt
+
+# Process MP4 with CV-pose (now supports video!)
+uv run cat-locomotion cv-pose --gif assets/mp4/dog-running.mp4 --amplitude 1.2
+
+# Adjust parameters
+uv run cat-locomotion cv-pose --gif assets/gifs/happy-cat.gif --speed 1.5 --amplitude 2.0
 ```
 
-### 利用可能なコントローラー
+### Processing Examples
 
-| コントローラー | 説明 | 用途 |
+<p align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <img src="assets/gifs/dancing-dog.gif" width="250"><br>
+        <b>Input: Dancing Dog</b>
+      </td>
+      <td align="center">→</td>
+      <td align="center">
+        <img src="outputs/cv_tracking_dancing-dog.gif" width="250"><br>
+        <b>Output: Motion Tracking</b>
+      </td>
+    </tr>
+  </table>
+</p>
+
+### Available Controllers
+
+| Controller | Description | Use Case |
 |--------------|------|------|
-| `dlc` | DeepLabCut風の動物姿勢推定 | 動物のGIF/動画に最適 |
-| `yolo` | YOLOベースの姿勢推定 | 人間的な動きのGIFに適している |
-| `cv-pose` | OpenCVベースの姿勢推定 | 外部依存なしで動作 |
-| `simple` | シンプルな直接マッピング | 基本的な動き |
-| `official` | オリジナルの拡張モーション抽出 | 従来の手法 |
+| `yolo` | YOLO pose estimation with human-to-animal keypoint mapping | Real pose estimation for any subject |
+| `cv-pose` | OpenCV-based pose estimation | Fast, works without ML dependencies |
+| `simple` | Simple direct mapping | Basic movements |
+| `official` | Original enhanced motion extraction | Traditional method |
 
-### コマンドラインオプション
+### Command Line Options
 
 ```bash
-# ヘルプを表示
+# Show help
 uv run cat-locomotion --help
-uv run cat-locomotion dlc --help
+uv run cat-locomotion cv-pose --help
 
-# 共通オプション
---gif PATH          # 入力GIF/動画ファイルのパス
---speed FLOAT       # モーション速度倍率（デフォルト: 1.0）
---amplitude FLOAT   # モーション振幅倍率（デフォルト: 1.2）
+# Common options
+--gif PATH          # Input GIF/video file path
+--speed FLOAT       # Motion speed multiplier (default: 1.0)
+--amplitude FLOAT   # Motion amplitude multiplier (default: 1.2)
 
-# YOLOのみ
---model MODEL       # YOLOモデル（yolov8x-pose.pt, yolov8n-pose.pt等）
+# YOLO only
+--model MODEL       # YOLO model (yolov8x-pose.pt, yolov8n-pose.pt, etc.)
 ```
 
-## 出力ファイル 📁
+## Output Files 📁
 
-プログラムを実行すると、`outputs/`ディレクトリに以下のファイルが自動生成されます：
+When you run the program, the following files are automatically generated in the `outputs/` directory:
 
-### DeepLabCut (DLC)
-- `dlc_keypoints_*.png` - 検出されたキーポイントの可視化
-- `dlc_tracking_*.gif` - モーションキャプチャのアニメーション
-- `dlc_metrics_*/` - パフォーマンスメトリクス
-  - `tracking_metrics.png` - 検出数と信頼度の推移
-  - `confidence_heatmap.png` - キーポイント毎の信頼度ヒートマップ
+### YOLO Pose
+- `yolo_keypoints_*.png` - Visualization of detected keypoints with animal mapping
+- `yolo_tracking_*.gif` - Motion capture animation (for GIF input)
+- `yolo_tracking_*.mp4` - Motion capture video (for MP4 input)
+- Automatic human-to-animal keypoint mapping for natural quadruped motion
+- Real pose estimation using state-of-the-art YOLO models
+- **Supports both GIF and MP4 input/output**
+
+<p align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <img src="outputs/cv_keypoints_dancing-dog.png" width="300"><br>
+        <b>Keypoints Detection</b>
+      </td>
+      <td align="center">
+        <img src="outputs/cv_metrics_dancing-dog/tracking_metrics.png" width="300"><br>
+        <b>Tracking Metrics</b>
+      </td>
+    </tr>
+    <tr>
+      <td align="center">
+        <img src="outputs/cv_tracking_chipi-chipi-chapa-chapa.gif" width="300"><br>
+        <b>Motion Capture Result</b>
+      </td>
+      <td align="center">
+        <img src="outputs/cv_metrics_chipi-chipi-chapa-chapa/confidence_heatmap.png" width="300"><br>
+        <b>Confidence Heatmap</b>
+      </td>
+    </tr>
+  </table>
+</p>
 
 ### YOLO
-- `yolo_keypoints_*.png` - YOLOで検出されたキーポイント
-- `yolo_tracking_*.gif` - トラッキング結果のアニメーション
-- `yolo_metrics_*/` - 検出メトリクス
+- `yolo_keypoints_*.png` - YOLO-detected keypoints
+- `yolo_tracking_*.gif` - Tracking result animation
+- `yolo_metrics_*/` - Detection metrics
 
-## 姿勢推定手法の比較 🔍
+## Pose Estimation Method Comparison 🔍
 
-| 特徴 | DeepLabCut (DLC) | YOLO |
-|------|------------------|------|
-| **検出方式** | コンピュータビジョン（SIFT、色検出、輪郭解析） | 深層学習（事前学習済みモデル） |
-| **対象** | 動物専用に設計 | 人間用（COCO dataset） |
-| **精度（GIF）** | 高い | 中程度 |
-| **精度（MP4）** | 中程度 | 低い（動物には不適） |
-| **処理速度** | 高速 | GPU使用時は高速 |
-| **外部依存** | なし（OpenCV のみ） | ultralytics (YOLO) |
+| Feature | YOLO | CV-Pose |
+|------|--------|---------------|
+| **Detection Method** | Deep Learning pose estimation | Computer Vision (SIFT, color, contour) |
+| **Target** | Human pose → Animal mapping | Designed for animals |
+| **Accuracy** | High (real keypoints) | High |
+| **Processing Speed** | Fast with GPU | Fast |
+| **External Dependencies** | ultralytics | None (OpenCV only) |
+| **Video Support** | ✅ MP4 input/output | ✅ MP4 input |
+| **GIF Support** | ✅ GIF input/output | ✅ GIF input |
 
-## トラブルシューティング 🔧
+### Visual Comparison
+<p align="center">
+  <img src="outputs/cv_keypoints_dog-running.png" width="400"><br>
+  <i>CV-Pose accurately detects animal keypoints with specialized computer vision techniques</i>
+</p>
 
-### ロボットが動かない場合
-- すべてのコントローラーにフォールバックモーションが実装されているため、キーポイントが検出されなくても基本的な動きが生成されます
-- `--amplitude`パラメータを大きくしてみてください（例: `--amplitude 2.0`）
+## Troubleshooting 🔧
 
-### MP4の検出精度が低い場合
-- DLCコントローラーを使用することを推奨します: `cat-locomotion dlc --gif video.mp4`
-- より良い結果を得るには：
-  - 動物が大きく映っている動画を使用
-  - 背景がシンプルな動画を選択
-  - 横向きの姿勢が多い動画が最適
+### If the robot doesn't move
+- All controllers have fallback motion implemented, so basic movements will be generated even if keypoints are not detected
+- Try increasing the `--amplitude` parameter (e.g., `--amplitude 2.0`)
 
-### GPU関連のエラー
+### Low detection accuracy for MP4
+- We recommend using the CV-Pose controller: `cat-locomotion cv-pose --gif video.mp4`
+- For better results:
+  - Use videos where the animal appears large
+  - Choose videos with simple backgrounds
+  - Videos with many side-view poses work best
+
+### GPU-related errors
 ```bash
-# CPUモードで実行（遅いが動作する）
-CUDA_VISIBLE_DEVICES="" uv run cat-locomotion dlc --gif assets/gifs/happy-cat.gif
+# Run in CPU mode (slow but works)
+CUDA_VISIBLE_DEVICES="" uv run cat-locomotion cv-pose --gif assets/gifs/happy-cat.gif
 ```
 
-## プロジェクト構造 📂
+## Project Structure 📂
 
 ```
 cat-meme-locomotion/
 ├── src/cat_meme_locomotion/
 │   ├── core/
-│   │   ├── dlc_pose_extractor.py      # DeepLabCut風姿勢推定
-│   │   ├── yolo_pose_extractor.py     # YOLO姿勢推定
-│   │   └── motion_extractor.py        # 基本モーション抽出
-│   ├── unitree_dlc_controller.py      # DLCロボットコントローラー
-│   ├── unitree_yolo_controller.py     # YOLOロボットコントローラー
-│   └── cli.py                         # コマンドラインインターフェース
+│   │   ├── yolo_pose_extractor.py     # YOLO-based pose estimation
+│   │   ├── yolo_pose_extractor.py     # YOLO pose estimation
+│   │   └── motion_extractor.py        # Basic motion extraction
+│   ├── unitree_yolo_controller.py     # YOLO robot controller
+│   ├── unitree_yolo_controller.py     # YOLO robot controller
+│   └── cli.py                         # Command line interface
 ├── assets/
-│   ├── gifs/                          # サンプルGIFファイル
-│   └── mp4/                           # サンプル動画ファイル
-├── outputs/                           # 生成された出力ファイル
-└── pyproject.toml                     # プロジェクト設定
+│   ├── gifs/                          # Sample GIF files
+│   └── mp4/                           # Sample video files
+├── outputs/                           # Generated output files
+└── pyproject.toml                     # Project configuration
 ```
 
-## 開発 💻
+## Development 💻
 
-### 開発環境のセットアップ
+### Development Environment Setup
 
 ```bash
-# 開発用依存関係をインストール
+# Install development dependencies
 uv pip install -e ".[dev]"
 
-# コードフォーマット
+# Code formatting
 black src/
 ruff check src/
 
-# テスト実行
+# Run tests
 pytest tests/
 ```
 
-### 新しいコントローラーの追加
+### Adding a New Controller
 
-1. `src/cat_meme_locomotion/`に新しいコントローラーファイルを作成
-2. `cli.py`に新しいサブコマンドを追加
-3. READMEを更新
+1. Create a new controller file in `src/cat_meme_locomotion/`
+2. Add a new subcommand to `cli.py`
+3. Update README
 
-## ライセンス 📄
+## License 📄
 
-このプロジェクトはMITライセンスの下で公開されています。詳細は[LICENSE](LICENSE)ファイルを参照してください。
+This project is released under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-## 謝辞 🙏
+## Acknowledgments 🙏
 
-- [Genesis](https://github.com/Genesis-Embodied-AI/Genesis) - 物理シミュレーション
-- [Unitree Robotics](https://www.unitree.com/) - Go2ロボットモデル
-- [Ultralytics](https://github.com/ultralytics/ultralytics) - YOLOv8実装
+- [Genesis](https://github.com/Genesis-Embodied-AI/Genesis) - Physics simulation
+- [Unitree Robotics](https://www.unitree.com/) - Go2 robot model
+- [Ultralytics](https://github.com/ultralytics/ultralytics) - YOLOv8 implementation
 
-## 貢献 🤝
+## Contributing 🤝
 
-プルリクエストを歓迎します！大きな変更の場合は、まずissueを開いて変更内容について議論してください。
+Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change.
 
-1. フォーク
-2. フィーチャーブランチを作成 (`git checkout -b feature/AmazingFeature`)
-3. 変更をコミット (`git commit -m 'Add some AmazingFeature'`)
-4. ブランチにプッシュ (`git push origin feature/AmazingFeature`)
-5. プルリクエストを開く
+1. Fork the project
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-## 今後の改善予定 🚧
+## Future Improvements 🚧
 
-- [ ] 動物専用の姿勢推定モデルの実装
-- [ ] リアルタイムウェブカメラ入力のサポート
-- [ ] より多くのロボットモデルのサポート
-- [ ] 3D姿勢推定の実装
-- [ ] モーション学習とスタイル転送
+- [ ] Implement animal-specific pose estimation models
+- [ ] Support real-time webcam input
+- [ ] Support more robot models
+- [ ] Implement 3D pose estimation
+- [ ] Motion learning and style transfer
