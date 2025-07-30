@@ -244,30 +244,9 @@ pytest tests/
 2. Add a new subcommand to `cli.py`
 3. Update README
 
-## License 📄
-
-This project is released under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments 🙏
 
 - [Genesis](https://github.com/Genesis-Embodied-AI/Genesis) - Physics simulation
 - [Unitree Robotics](https://www.unitree.com/) - Go2 robot model
 - [Ultralytics](https://github.com/ultralytics/ultralytics) - YOLOv8 implementation
-
-## Contributing 🤝
-
-Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change.
-
-1. Fork the project
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## Future Improvements 🚧
-
-- [ ] Implement animal-specific pose estimation models
-- [ ] Support real-time webcam input
-- [ ] Support more robot models
-- [ ] Implement 3D pose estimation
-- [ ] Motion learning and style transfer
