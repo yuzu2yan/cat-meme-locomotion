@@ -25,7 +25,15 @@ if _original_signed_distance:
     igl.signed_distance = patched_signed_distance
 
 import genesis as gs
-from cat_meme_locomotion.core.deeplabcut_motion_extractor import DeepLabCutMotionExtractor, KeypointTrajectory
+from cat_meme_locomotion.core.cv_animal_pose_extractor import CVAnimalPoseExtractor
+from dataclasses import dataclass
+from typing import List, Tuple
+
+@dataclass
+class KeypointTrajectory:
+    """Simple keypoint trajectory data."""
+    positions: List[Tuple[float, float]]
+    confidences: List[float]
 
 
 class UnitreeSimpleIKController:
@@ -307,24 +315,59 @@ def run_simple_ik_simulation():
     print(f"⚡ Speed: {args.speed}x")
     
     # Extract motion with DeepLabCut
-    print("\n📊 Extracting motion with DeepLabCut-style keypoint detection...")
-    extractor = DeepLabCutMotionExtractor(str(gif_path), use_cuda=False)
+    print("\n📊 Extracting motion with CV-based keypoint detection...")
+    extractor = CVAnimalPoseExtractor(args.gif)
     
-    # Analyze motion
-    motion_data = extractor.analyze_motion()
+    # Load GIF frames
+    from cat_meme_locomotion.utils.gif_loader import GifLoader
+    loader = GifLoader()
+    frames = loader.load_gif(str(gif_path))
     
-    if not motion_data:
-        print("❌ Failed to extract motion")
+    if not frames:
+        print("❌ Failed to load GIF")
         return
+    
+    # Extract keypoints from all frames
+    all_keypoints = []
+    for frame in frames:
+        keypoints = extractor.extract_keypoints(frame)
+        all_keypoints.append(keypoints)
+    
+    # Convert to trajectories
+    keypoint_trajectories = {}
+    if all_keypoints:
+        # Get all unique keypoint names
+        all_parts = set()
+        for kps in all_keypoints:
+            all_parts.update(kps.keys())
+        
+        # Build trajectories for each part
+        for part in all_parts:
+            positions = []
+            confidences = []
+            for kps in all_keypoints:
+                if part in kps and kps[part]:
+                    positions.append(kps[part][0])
+                    confidences.append(1.0)
+                else:
+                    # Use last known position or center
+                    if positions:
+                        positions.append(positions[-1])
+                    else:
+                        positions.append((frames[0].shape[1]//2, frames[0].shape[0]//2))
+                    confidences.append(0.0)
+            keypoint_trajectories[part] = KeypointTrajectory(positions=positions, confidences=confidences)
+    
+    motion_data = {'frames': len(frames), 'fps': 10, 'num_frames': len(frames), 'detected_keypoints': list(keypoint_trajectories.keys())}
     
     print(f"✅ Analyzed {motion_data['num_frames']} frames")
     print(f"✅ Detected {len(motion_data['detected_keypoints'])} keypoints")
     
     # Visualize if requested
     if args.visualize:
-        output_path = f"outputs/simple_keypoints_{gif_path.stem}.png"
+        output_path = f"outputs/simple_keypoints_{gif_path.stem}.gif"
         Path("outputs").mkdir(exist_ok=True)
-        extractor.visualize_keypoints(output_path)
+        extractor.create_labeled_gif(frames, all_keypoints, output_path)
         print(f"\n📊 Keypoint tracking visualization saved to {output_path}")
     
     # Run simulation
@@ -332,7 +375,7 @@ def run_simple_ik_simulation():
     controller.motion_speed = args.speed
     controller.create_scene()
     controller.load_unitree_robot()
-    controller.apply_simple_motion(motion_data, extractor.keypoint_trajectories)
+    controller.apply_simple_motion(motion_data, keypoint_trajectories)
 
 
 if __name__ == "__main__":

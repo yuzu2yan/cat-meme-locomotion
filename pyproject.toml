@@ -36,6 +36,7 @@ build-backend = "setuptools.build_meta"
 cat-locomotion = "cat_meme_locomotion.cli:main"
 cat-cv-pose = "cat_meme_locomotion.unitree_cv_pose_controller:run_cv_pose_simulation"
 cat-simple = "cat_meme_locomotion.unitree_ik_simple:run_simple_ik_simulation"
+cat-yolo = "cat_meme_locomotion.unitree_yolo_controller:run_yolo_simulation"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
