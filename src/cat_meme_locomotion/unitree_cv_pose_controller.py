@@ -201,6 +201,14 @@ class UnitreeCVPoseController:
         # Get max frames
         max_frames = max(len(traj.positions) for traj in keypoint_trajectories.values() if traj.positions)
         
+        if max_frames == 0:
+            print("❌ No valid trajectories found!")
+            return
+            
+        print(f"   • Total frames: {max_frames}")
+        print(f"   • Motion speed: {self.motion_speed}x")
+        print(f"   • Motion amplitude: {self.motion_amplitude}x")
+        
         # Pre-compute normalized trajectories
         normalized_trajectories = {}
         for name, traj in keypoint_trajectories.items():
@@ -218,9 +226,9 @@ class UnitreeCVPoseController:
                 
                 normalized = (positions - min_vals) / range_vals
                 
-                # Weight by confidence
-                weighted = normalized * np.expand_dims(confidences, axis=1)
-                normalized_trajectories[name] = weighted
+                # Store normalized positions without confidence weighting
+                # Confidence will be used for filtering, not scaling
+                normalized_trajectories[name] = normalized
         
         # Control loop
         last_target = self.default_dof_pos.clone()
@@ -311,48 +319,58 @@ class UnitreeCVPoseController:
             self.frame_idx += 1
             
             # Print progress
-            if self.frame_idx % 100 == 0:
+            if self.frame_idx % 50 == 0:
                 pos = self.robot.get_pos()
                 vel = self.robot.get_vel()
                 height = pos[0, 2].item() if hasattr(pos[0, 2], 'item') else pos[0, 2]
                 vel_cpu = vel[0, :2].cpu().numpy() if hasattr(vel, 'cpu') else vel[0, :2]
                 speed = np.linalg.norm(vel_cpu)
-                print(f"   Frame {self.frame_idx}, Height: {height:.3f}m, Speed: {speed:.3f}m/s")
+                print(f"   Frame {self.frame_idx}, Motion frame: {motion_frame}/{max_frames}, Height: {height:.3f}m, Speed: {speed:.3f}m/s")
         
         print("\n✨ Simulation completed!")
 
 
-def run_cv_pose_simulation():
+def run_cv_pose_simulation(gif_path=None, speed=None, amplitude=None, visualize=False):
     """Run simulation with CV-based pose estimation."""
     import argparse
     from pathlib import Path
     
-    # Parse command line arguments
-    parser = argparse.ArgumentParser(description="Unitree robot with OpenCV-based animal pose estimation")
-    parser.add_argument(
-        "--gif", 
-        type=str, 
-        default="assets/gifs/chipi-chipi-chapa-chapa.gif",
-        help="Path to the GIF file"
-    )
-    parser.add_argument(
-        "--speed",
-        type=float,
-        default=1.0,
-        help="Motion speed multiplier (default: 1.0)"
-    )
-    parser.add_argument(
-        "--amplitude",
-        type=float,
-        default=1.5,
-        help="Motion amplitude multiplier (default: 1.5)"
-    )
-    parser.add_argument(
-        "--visualize",
-        action="store_true",
-        help="Save keypoint tracking visualization"
-    )
-    args = parser.parse_args()
+    # If arguments are passed directly, use them
+    if gif_path is not None:
+        class Args:
+            pass
+        args = Args()
+        args.gif = gif_path
+        args.speed = speed if speed is not None else 1.0
+        args.amplitude = amplitude if amplitude is not None else 1.5
+        args.visualize = visualize
+    else:
+        # Parse command line arguments
+        parser = argparse.ArgumentParser(description="Unitree robot with OpenCV-based animal pose estimation")
+        parser.add_argument(
+            "--gif", 
+            type=str, 
+            default="assets/gifs/chipi-chipi-chapa-chapa.gif",
+            help="Path to the GIF file"
+        )
+        parser.add_argument(
+            "--speed",
+            type=float,
+            default=1.0,
+            help="Motion speed multiplier (default: 1.0)"
+        )
+        parser.add_argument(
+            "--amplitude",
+            type=float,
+            default=1.5,
+            help="Motion amplitude multiplier (default: 1.5)"
+        )
+        parser.add_argument(
+            "--visualize",
+            action="store_true",
+            help="Save keypoint tracking visualization"
+        )
+        args = parser.parse_args()
     
     # Validate GIF path
     gif_path = Path(args.gif)
@@ -366,10 +384,19 @@ def run_cv_pose_simulation():
     print(f"⚡ Speed: {args.speed}x")
     print(f"📏 Amplitude: {args.amplitude}x")
     print(f"🔧 Method: OpenCV (SIFT + Contour Analysis)")
+    sys.stdout.flush()  # Force flush output
     
     # Extract motion with CV-based method
     print("\n📊 Extracting motion with CV-based pose detection...")
-    extractor = CVAnimalPoseExtractor(str(gif_path))  # Works with both GIF and video files
+    sys.stdout.flush()
+    
+    try:
+        extractor = CVAnimalPoseExtractor(str(gif_path))  # Works with both GIF and video files
+    except Exception as e:
+        print(f"❌ Error creating extractor: {e}")
+        import traceback
+        traceback.print_exc()
+        return
     
     # Analyze motion
     motion_data = extractor.analyze_motion()
@@ -380,21 +407,62 @@ def run_cv_pose_simulation():
     
     print(f"✅ Analyzed {motion_data['num_frames']} frames")
     print(f"✅ Detected {len(motion_data['detected_keypoints'])} valid keypoints")
+    sys.stdout.flush()
     
-    # Visualize if requested
-    if args.visualize:
-        output_path = f"outputs/cv_pose_{gif_path.stem}.png"
-        Path("outputs").mkdir(exist_ok=True)
-        extractor.visualize_keypoints(output_path)
-        print(f"\n📊 Keypoint tracking visualization saved to {output_path}")
+    # Always generate visualizations
+    Path("outputs").mkdir(exist_ok=True)
+    
+    # Generate PNG visualization
+    print("\n📈 Generating PNG visualization...")
+    sys.stdout.flush()
+    png_output_path = f"outputs/cv_pose_{gif_path.stem}.png"
+    try:
+        extractor.visualize_keypoints(png_output_path)
+        print(f"📊 Keypoint tracking visualization saved to {png_output_path}")
+    except Exception as e:
+        print(f"❌ Error generating PNG: {e}")
+        import traceback
+        traceback.print_exc()
+    sys.stdout.flush()
+    
+    # Generate tracking GIF
+    print("\n🎬 Generating tracking GIF...")
+    sys.stdout.flush()
+    gif_output_path = f"outputs/cv_tracking_{gif_path.stem}.gif"
+    try:
+        extractor.create_tracking_gif(gif_output_path, fps=10, max_frames=100)
+        print(f"✅ Tracking GIF saved to {gif_output_path}")
+    except Exception as e:
+        print(f"❌ Error generating GIF: {e}")
+        import traceback
+        traceback.print_exc()
+    sys.stdout.flush()
     
     # Run simulation
-    controller = UnitreeCVPoseController()
-    controller.motion_speed = args.speed
-    controller.motion_amplitude = args.amplitude
-    controller.create_scene()
-    controller.load_unitree_robot()
-    controller.apply_cv_motion(motion_data, extractor.keypoint_trajectories)
+    print("\n🤖 Starting simulation...")
+    sys.stdout.flush()
+    
+    try:
+        controller = UnitreeCVPoseController()
+        controller.motion_speed = args.speed
+        controller.motion_amplitude = args.amplitude
+        
+        print("📋 Creating scene...")
+        sys.stdout.flush()
+        controller.create_scene()
+        
+        print("🤖 Loading robot...")
+        sys.stdout.flush()
+        controller.load_unitree_robot()
+        
+        print("🎮 Applying motion...")
+        sys.stdout.flush()
+        controller.apply_cv_motion(motion_data, extractor.keypoint_trajectories)
+    except Exception as e:
+        print(f"❌ Error in simulation: {e}")
+        import traceback
+        traceback.print_exc()
+        return
 
 
 if __name__ == "__main__":
