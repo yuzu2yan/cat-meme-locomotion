@@ -46,10 +46,6 @@ logs/
 *.pkl
 go2_fixed.urdf
 
-# Outputs
-outputs/*.gif
-outputs/*.mp4
-
 # OS
 .DS_Store
 Thumbs.db
