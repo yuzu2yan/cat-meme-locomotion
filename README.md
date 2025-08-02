@@ -1,24 +1,27 @@
-# Cat Meme Locomotion 🐱🤖
+# Cat Meme Locomotion 
 
-A controller that enables Unitree Go2 robots to mimic movements from cat GIFs/videos. Supports multiple pose estimation methods and automatically generates motion capture and learning results.
+A controller that enables Unitree Go2 robots to mimic movements from cat GIFs/videos. Supports multiple pose estimation methods and automatically generates motion capture and tracking visualizations.
 
 <p align="center">
-  <img src="assets/demo.gif" alt="Demo" width="600">
+  <img src="outputs/cv_tracking_dancing-dog.gif" alt="Demo" width="600">
+  <br>
+  <i>Real-time pose tracking and robot simulation from GIF animations</i>
 </p>
 
-## Features ✨
+## Features 
 
-- 🎬 **Supports both GIFs and videos (MP4)**
-- 🤖 **Multiple pose estimation methods**:
+- **Supports both GIFs and videos (MP4)**
+- **Multiple pose estimation methods**:
+  - **CV-Pose**: OpenCV-based animal pose estimation with accuracy metrics
   - **YOLO**: State-of-the-art pose estimation with human-to-animal keypoint mapping
-  - **YOLO**: Deep learning-based pose estimation (human model)
-  - **CV-Pose**: Simple OpenCV-based animal pose estimation
   - **Simple**: Direct keypoint mapping
-- 📊 **Automatically generated outputs**:
-  - Motion capture GIFs
-  - Keypoint visualization
-  - Learning metrics (confidence, detection count trends)
-- 🎮 **Real-time simulation**: Using Genesis physics engine
+  - **Official**: Traditional motion extraction
+- **Automatically generated outputs**:
+  - Motion tracking GIFs with skeleton visualization
+  - Keypoint detection with accuracy metrics
+  - Per-keypoint confidence analysis
+- **Real-time simulation**: Using Genesis physics engine
+- **Accuracy tracking**: Detection rate, confidence scores, and tracking consistency
 
 ### Example Input GIFs
 <p align="center">
@@ -27,7 +30,7 @@ A controller that enables Unitree Go2 robots to mimic movements from cat GIFs/vi
   <img src="assets/gifs/chipi-chipi-chapa-chapa.gif" alt="Chipi Chipi" width="200">
 </p>
 
-## Installation 🚀
+## Installation 
 
 ### Requirements
 
@@ -60,7 +63,7 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -e .
 ```
 
-## Usage 🎮
+## Usage 
 
 ### Basic Usage
 
@@ -71,10 +74,10 @@ uv run cat-locomotion yolo --gif assets/gifs/dancing-dog.gif --model yolov8x-pos
 # Process GIF with CV-based pose estimation (no ML required)
 uv run cat-locomotion cv-pose --gif assets/gifs/dancing-dog.gif
 
-# Process MP4 video with YOLO (outputs MP4)
+# Process MP4 video with YOLO 
 uv run cat-locomotion yolo --gif assets/mp4/kitten-walking.mp4 --model yolov8n-pose.pt
 
-# Process MP4 with CV-pose (now supports video!)
+# Process MP4 with CV-pose 
 uv run cat-locomotion cv-pose --gif assets/mp4/dog-running.mp4 --amplitude 1.2
 
 # Adjust parameters
@@ -96,6 +99,17 @@ uv run cat-locomotion cv-pose --gif assets/gifs/happy-cat.gif --speed 1.5 --ampl
         <b>Output: Motion Tracking</b>
       </td>
     </tr>
+    <tr>
+      <td align="center">
+        <img src="assets/gifs/cat-punch.gif" width="250"><br>
+        <b>Input: Cat Punch</b>
+      </td>
+      <td align="center">→</td>
+      <td align="center">
+        <img src="outputs/cv_tracking_cat-punch.gif" width="250"><br>
+        <b>Output: Pose Tracking</b>
+      </td>
+    </tr>
   </table>
 </p>
 
@@ -103,8 +117,8 @@ uv run cat-locomotion cv-pose --gif assets/gifs/happy-cat.gif --speed 1.5 --ampl
 
 | Controller | Description | Use Case |
 |--------------|------|------|
-| `yolo` | YOLO pose estimation with human-to-animal keypoint mapping | Real pose estimation for any subject |
-| `cv-pose` | OpenCV-based pose estimation | Fast, works without ML dependencies |
+| `cv-pose` | OpenCV-based animal pose estimation with accuracy metrics | Best for animal GIFs, no ML required |
+| `yolo` | YOLO pose estimation with human-to-animal keypoint mapping | Works for humans and animals |
 | `simple` | Simple direct mapping | Basic movements |
 | `official` | Original enhanced motion extraction | Traditional method |
 
@@ -124,67 +138,65 @@ uv run cat-locomotion cv-pose --help
 --model MODEL       # YOLO model (yolov8x-pose.pt, yolov8n-pose.pt, etc.)
 ```
 
-## Output Files 📁
+## Output Files 
 
 When you run the program, the following files are automatically generated in the `outputs/` directory:
 
-### YOLO Pose
-- `yolo_keypoints_*.png` - Visualization of detected keypoints with animal mapping
+### CV-Pose Outputs
+- `cv_pose_*.png` - Comprehensive visualization with accuracy metrics
+- `cv_tracking_*.gif` - Motion tracking animation with skeleton overlay
+
+<p align="center">
+  <img src="outputs/cv_pose_dancing-dog.png" alt="CV Pose Analysis" width="800">
+  <br>
+  <i>CV-Pose analysis showing keypoints, trajectories, confidence over time, and accuracy metrics</i>
+</p>
+
+The PNG output includes:
+- **Keypoint Detection**: Visualized on the actual frame with detection count
+- **Keypoint Trajectories**: Movement paths of all tracked keypoints
+- **Confidence Over Time**: Per-keypoint confidence graphs
+- **Accuracy Metrics**:
+  - Overall Detection Rate
+  - High Confidence Detection Rate
+  - Tracking Consistency
+  - Keypoint Coverage
+  - Per-keypoint accuracy details
+
+### YOLO Outputs
+- `yolo_keypoints_*.png` - Visualization of detected keypoints
 - `yolo_tracking_*.gif` - Motion capture animation (for GIF input)
 - `yolo_tracking_*.mp4` - Motion capture video (for MP4 input)
-- Automatic human-to-animal keypoint mapping for natural quadruped motion
-- Real pose estimation using state-of-the-art YOLO models
-- **Supports both GIF and MP4 input/output**
+
+## Pose Estimation Method Comparison 
+
+| Feature | CV-Pose | YOLO |
+|------|---------------|--------|
+| **Detection Method** | Computer Vision (SIFT, contour, color) | Deep Learning pose estimation |
+| **Target** | Designed for animals | Human pose → Animal mapping |
+| **Accuracy Metrics** | ✅ Full accuracy analysis | Basic confidence scores |
+| **Processing Speed** | Fast | Fast with GPU |
+| **External Dependencies** | None (OpenCV only) | ultralytics |
+| **Output Quality** | High with accuracy tracking | High |
+
+### Example Outputs
 
 <p align="center">
   <table>
     <tr>
       <td align="center">
-        <img src="outputs/cv_keypoints_dancing-dog.png" width="300"><br>
-        <b>Keypoints Detection</b>
+        <img src="outputs/cv_tracking_cat-punch.gif" width="350"><br>
+        <b>CV-Pose: Cat Punch Tracking</b>
       </td>
       <td align="center">
-        <img src="outputs/cv_metrics_dancing-dog/tracking_metrics.png" width="300"><br>
-        <b>Tracking Metrics</b>
-      </td>
-    </tr>
-    <tr>
-      <td align="center">
-        <img src="outputs/cv_tracking_chipi-chipi-chapa-chapa.gif" width="300"><br>
-        <b>Motion Capture Result</b>
-      </td>
-      <td align="center">
-        <img src="outputs/cv_metrics_chipi-chipi-chapa-chapa/confidence_heatmap.png" width="300"><br>
-        <b>Confidence Heatmap</b>
+        <img src="outputs/cv_tracking_dancing-dog.gif" width="350"><br>
+        <b>CV-Pose: Dancing Dog Tracking</b>
       </td>
     </tr>
   </table>
 </p>
 
-### YOLO
-- `yolo_keypoints_*.png` - YOLO-detected keypoints
-- `yolo_tracking_*.gif` - Tracking result animation
-- `yolo_metrics_*/` - Detection metrics
-
-## Pose Estimation Method Comparison 🔍
-
-| Feature | YOLO | CV-Pose |
-|------|--------|---------------|
-| **Detection Method** | Deep Learning pose estimation | Computer Vision (SIFT, color, contour) |
-| **Target** | Human pose → Animal mapping | Designed for animals |
-| **Accuracy** | High (real keypoints) | High |
-| **Processing Speed** | Fast with GPU | Fast |
-| **External Dependencies** | ultralytics | None (OpenCV only) |
-| **Video Support** | ✅ MP4 input/output | ✅ MP4 input |
-| **GIF Support** | ✅ GIF input/output | ✅ GIF input |
-
-### Visual Comparison
-<p align="center">
-  <img src="outputs/cv_keypoints_dog-running.png" width="400"><br>
-  <i>CV-Pose accurately detects animal keypoints with specialized computer vision techniques</i>
-</p>
-
-## Troubleshooting 🔧
+## Troubleshooting 
 
 ### If the robot doesn't move
 - All controllers have fallback motion implemented, so basic movements will be generated even if keypoints are not detected
@@ -203,26 +215,26 @@ When you run the program, the following files are automatically generated in the
 CUDA_VISIBLE_DEVICES="" uv run cat-locomotion cv-pose --gif assets/gifs/happy-cat.gif
 ```
 
-## Project Structure 📂
+## Project Structure 
 
 ```
 cat-meme-locomotion/
 ├── src/cat_meme_locomotion/
 │   ├── core/
-│   │   ├── yolo_pose_extractor.py     # YOLO-based pose estimation
-│   │   ├── yolo_pose_extractor.py     # YOLO pose estimation
-│   │   └── motion_extractor.py        # Basic motion extraction
-│   ├── unitree_yolo_controller.py     # YOLO robot controller
-│   ├── unitree_yolo_controller.py     # YOLO robot controller
-│   └── cli.py                         # Command line interface
+│   │   ├── cv_animal_pose_extractor.py  # CV-based animal pose estimation
+│   │   ├── yolo_pose_extractor.py       # YOLO-based pose estimation
+│   │   └── motion_extractor.py          # Basic motion extraction
+│   ├── unitree_cv_pose_controller.py    # CV-Pose robot controller
+│   ├── unitree_yolo_controller.py       # YOLO robot controller
+│   └── cli.py                           # Command line interface
 ├── assets/
-│   ├── gifs/                          # Sample GIF files
-│   └── mp4/                           # Sample video files
-├── outputs/                           # Generated output files
-└── pyproject.toml                     # Project configuration
+│   ├── gifs/                            # Sample GIF files
+│   └── mp4/                             # Sample video files
+├── outputs/                             # Generated output files
+└── pyproject.toml                       # Project configuration
 ```
 
-## Development 💻
+## Development 
 
 ### Development Environment Setup
 
@@ -245,8 +257,11 @@ pytest tests/
 3. Update README
 
 
-## Acknowledgments 🙏
+## Acknowledgments 
 
 - [Genesis](https://github.com/Genesis-Embodied-AI/Genesis) - Physics simulation
 - [Unitree Robotics](https://www.unitree.com/) - Go2 robot model
 - [Ultralytics](https://github.com/ultralytics/ultralytics) - YOLOv8 implementation
+
+## Special Thanls
+

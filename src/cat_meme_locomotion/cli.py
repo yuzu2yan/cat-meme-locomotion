@@ -72,11 +72,8 @@ Examples:
     # Import and run the appropriate controller
     if args.controller == 'cv-pose':
         from .unitree_cv_pose_controller import run_cv_pose_simulation
-        sys.argv = ['cv-pose', '--gif', args.gif, '--speed', str(args.speed), 
-                    '--amplitude', str(args.amplitude)]
-        if args.visualize:
-            sys.argv.append('--visualize')
-        run_cv_pose_simulation()
+        run_cv_pose_simulation(gif_path=args.gif, speed=args.speed, 
+                             amplitude=args.amplitude, visualize=args.visualize)
         
     elif args.controller == 'simple':
         from .unitree_ik_simple import run_simple_ik_simulation
