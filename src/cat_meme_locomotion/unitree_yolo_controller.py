@@ -111,15 +111,12 @@ class UnitreeYOLOController:
         """Load Unitree robot."""
         print("🤖 Loading Unitree Go2 with YOLO pose control...")
         
-        # Fix URDF paths
-        self._fix_urdf_paths()
-        
         # Base position and orientation
         base_init_pos = [0.0, 0.0, 0.42]
         base_init_quat = [1.0, 0.0, 0.0, 0.0]
         
         # Load robot
-        urdf_path = Path("go2_fixed.urdf")
+        urdf_path = Path("go2.urdf")
         if urdf_path.exists():
             try:
                 self.robot = self.scene.add_entity(
@@ -153,23 +150,6 @@ class UnitreeYOLOController:
                 raise
         else:
             raise RuntimeError("URDF file not found")
-    
-    def _fix_urdf_paths(self):
-        """Fix mesh paths in URDF."""
-        import re
-        
-        with open("go2.urdf", "r") as f:
-            urdf_content = f.read()
-        
-        current_dir = Path.cwd()
-        urdf_content = re.sub(
-            r'filename="../dae/([^"]+)"',
-            f'filename="{current_dir}/dae/\\1"',
-            urdf_content
-        )
-        
-        with open("go2_fixed.urdf", "w") as f:
-            f.write(urdf_content)
     
     def apply_yolo_motion(self, motion_data: Dict, keypoint_trajectories: Dict[str, KeypointTrajectory], 
                          animal_keypoint_trajectories: Optional[Dict[str, KeypointTrajectory]] = None):

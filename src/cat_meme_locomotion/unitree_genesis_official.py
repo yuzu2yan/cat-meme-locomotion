@@ -106,15 +106,12 @@ class UnitreeOfficialController:
         """Load robot following official example."""
         print("🤖 Loading Unitree Go2 (Genesis official style)...")
         
-        # Fix URDF paths
-        self._fix_urdf_paths()
-        
         # Base position and orientation from official
         base_init_pos = [0.0, 0.0, 0.42]
         base_init_quat = [1.0, 0.0, 0.0, 0.0]  # w, x, y, z
         
         # Load robot
-        urdf_path = Path("go2_fixed.urdf")
+        urdf_path = Path("go2.urdf")
         if urdf_path.exists():
             try:
                 self.robot = self.scene.add_entity(
@@ -157,23 +154,6 @@ class UnitreeOfficialController:
                 raise
         else:
             raise RuntimeError("URDF file not found")
-    
-    def _fix_urdf_paths(self):
-        """Fix mesh paths in URDF."""
-        import re
-        
-        with open("go2.urdf", "r") as f:
-            urdf_content = f.read()
-        
-        current_dir = Path.cwd()
-        urdf_content = re.sub(
-            r'filename="../dae/([^"]+)"',
-            f'filename="{current_dir}/dae/\\1"',
-            urdf_content
-        )
-        
-        with open("go2_fixed.urdf", "w") as f:
-            f.write(urdf_content)
     
     def apply_cat_motion(self, motion_data: Dict):
         """Apply cat motion using official control approach."""

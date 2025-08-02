@@ -4,10 +4,15 @@ import cv2
 import numpy as np
 from PIL import Image
 from typing import Dict, List, Optional, Tuple, Any
+# Set matplotlib backend before importing pyplot
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from dataclasses import dataclass
 from scipy.signal import savgol_filter
 from pathlib import Path
+import imageio
+import sys
 
 
 @dataclass
@@ -77,6 +82,7 @@ class CVAnimalPoseExtractor:
         self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(detectShadows=True)
         
         print(f"🔧 Initialized CV-based animal pose extractor")
+        sys.stdout.flush()  # Force flush
         
         # Detect file type
         self.file_ext = Path(self.input_path).suffix.lower()
@@ -298,6 +304,7 @@ class CVAnimalPoseExtractor:
     def analyze_motion(self) -> Dict[str, Any]:
         """Analyze motion from all frames."""
         print("\n🔍 Analyzing motion with CV-based pose detection...")
+        sys.stdout.flush()
         
         # Extract frames if not already done
         if not self.frames:
@@ -464,10 +471,13 @@ class CVAnimalPoseExtractor:
     
     def visualize_keypoints(self, output_path: str, frame_idx: Optional[int] = None):
         """Visualize detected keypoints on frames."""
+        print(f"  Starting visualization...", flush=True)
+        
         if not self.frames or not self.keypoint_trajectories:
             print("No data to visualize")
             return
             
+        print(f"  Creating figure...", flush=True)
         # Create figure
         fig = plt.figure(figsize=(15, 10))
         
@@ -480,7 +490,16 @@ class CVAnimalPoseExtractor:
         # Plot 1: Keypoints on frame
         ax1 = plt.subplot(2, 2, 1)
         ax1.imshow(frame)
-        ax1.set_title(f'CV-based Animal Pose Detection (Frame {frame_idx})')
+        
+        # Count detected keypoints in this frame
+        detected_in_frame = sum(
+            1 for name in self.KEYPOINT_NAMES
+            if name in self.keypoint_trajectories and 
+            frame_idx < len(self.keypoint_trajectories[name].positions) and
+            self.keypoint_trajectories[name].confidences[frame_idx] > 0.3
+        )
+        
+        ax1.set_title(f'CV-based Animal Pose Detection (Frame {frame_idx}) - {detected_in_frame}/{len(self.KEYPOINT_NAMES)} keypoints')
         
         # Draw keypoints
         colors = plt.cm.rainbow(np.linspace(0, 1, len(self.KEYPOINT_NAMES)))
@@ -543,9 +562,12 @@ class CVAnimalPoseExtractor:
         ax3.set_ylim([0, 1])
         ax3.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
         
-        # Plot 4: Motion analysis summary
+        # Plot 4: Motion analysis summary with accuracy metrics
         ax4 = plt.subplot(2, 2, 4)
         ax4.axis('off')
+        
+        # Calculate accuracy metrics
+        accuracy_metrics = self._calculate_accuracy_metrics()
         
         summary_text = f"""Motion Analysis Summary:
         
@@ -553,16 +575,165 @@ Frames: {self.motion_data.get('num_frames', 0)}
 Detected Keypoints: {len(self.motion_data.get('detected_keypoints', []))}
 Gait Pattern: {self.motion_data.get('gait_pattern', 'unknown')}
 Gait Confidence: {self.motion_data.get('gait_confidence', 0):.2f}
-Avg Detection Confidence: {self.motion_data.get('avg_confidence', 0):.2f}
+
+Accuracy Metrics:
+• Overall Detection Rate: {accuracy_metrics['detection_rate']:.1%}
+• Avg Detection Confidence: {self.motion_data.get('avg_confidence', 0):.2f}
+• High Confidence Detections: {accuracy_metrics['high_conf_rate']:.1%}
+• Tracking Consistency: {accuracy_metrics['tracking_consistency']:.1%}
+• Keypoint Coverage: {accuracy_metrics['keypoint_coverage']:.1%}
+
+Per-Keypoint Accuracy:
+{accuracy_metrics['keypoint_details']}
 
 Method: OpenCV-based (SIFT + Contour Analysis)
 """
         
-        ax4.text(0.1, 0.9, summary_text, transform=ax4.transAxes, 
-                fontsize=10, verticalalignment='top', fontfamily='monospace')
+        ax4.text(0.1, 0.95, summary_text, transform=ax4.transAxes, 
+                fontsize=9, verticalalignment='top', fontfamily='monospace')
         
         plt.tight_layout()
         plt.savefig(output_path, dpi=150, bbox_inches='tight')
         plt.close()
         
         print(f"📊 Visualization saved to {output_path}")
+    
+    def _calculate_accuracy_metrics(self) -> Dict[str, Any]:
+        """Calculate accuracy metrics for the pose detection."""
+        metrics = {}
+        
+        # Overall detection rate
+        total_possible_detections = len(self.KEYPOINT_NAMES) * len(self.frames)
+        total_actual_detections = sum(
+            len([conf for conf in traj.confidences if conf > 0.3])
+            for traj in self.keypoint_trajectories.values()
+        )
+        metrics['detection_rate'] = total_actual_detections / total_possible_detections if total_possible_detections > 0 else 0
+        
+        # High confidence detection rate (confidence > 0.7)
+        high_conf_detections = sum(
+            len([conf for conf in traj.confidences if conf > 0.7])
+            for traj in self.keypoint_trajectories.values()
+        )
+        metrics['high_conf_rate'] = high_conf_detections / total_possible_detections if total_possible_detections > 0 else 0
+        
+        # Tracking consistency (how consistently each keypoint is tracked)
+        consistency_scores = []
+        for traj in self.keypoint_trajectories.values():
+            if traj.confidences:
+                # Count consecutive detections
+                consecutive_counts = []
+                current_count = 0
+                for conf in traj.confidences:
+                    if conf > 0.3:
+                        current_count += 1
+                    else:
+                        if current_count > 0:
+                            consecutive_counts.append(current_count)
+                        current_count = 0
+                if current_count > 0:
+                    consecutive_counts.append(current_count)
+                
+                # Consistency is the average length of consecutive detections / total frames
+                if consecutive_counts:
+                    avg_consecutive = np.mean(consecutive_counts)
+                    consistency = avg_consecutive / len(self.frames)
+                    consistency_scores.append(consistency)
+        
+        metrics['tracking_consistency'] = np.mean(consistency_scores) if consistency_scores else 0
+        
+        # Keypoint coverage (percentage of keypoints detected at least once)
+        detected_keypoints = [
+            name for name, traj in self.keypoint_trajectories.items()
+            if traj.confidences and any(conf > 0.3 for conf in traj.confidences)
+        ]
+        metrics['keypoint_coverage'] = len(detected_keypoints) / len(self.KEYPOINT_NAMES)
+        
+        # Per-keypoint accuracy details
+        keypoint_details_lines = []
+        for name in self.KEYPOINT_NAMES:
+            if name in self.keypoint_trajectories and self.keypoint_trajectories[name].confidences:
+                traj = self.keypoint_trajectories[name]
+                avg_conf = np.mean(traj.confidences)
+                detection_rate = len([c for c in traj.confidences if c > 0.3]) / len(traj.confidences)
+                keypoint_details_lines.append(f"  {name:15s}: {avg_conf:.2f} conf, {detection_rate:.0%} detected")
+        
+        metrics['keypoint_details'] = '\n'.join(keypoint_details_lines[:8])  # Show top 8 keypoints
+        if len(keypoint_details_lines) > 8:
+            metrics['keypoint_details'] += f"\n  ... and {len(keypoint_details_lines) - 8} more keypoints"
+        
+        return metrics
+    
+    def create_tracking_gif(self, output_path: str, fps: int = 10, max_frames: Optional[int] = None):
+        """Create an animated GIF showing keypoint tracking results."""
+        print(f"\n🎬 Creating tracking GIF...")
+        
+        if not self.frames or not self.keypoint_trajectories:
+            print("❌ No data to create GIF")
+            return
+            
+        # Limit frames if specified
+        frames_to_use = self.frames
+        if max_frames and len(self.frames) > max_frames:
+            # Sample frames evenly
+            indices = np.linspace(0, len(self.frames) - 1, max_frames, dtype=int)
+            frames_to_use = [self.frames[i] for i in indices]
+            frame_indices = indices
+        else:
+            frame_indices = list(range(len(frames_to_use)))
+        
+        annotated_frames = []
+        colors = plt.cm.rainbow(np.linspace(0, 1, len(self.KEYPOINT_NAMES)))
+        
+        for idx, (frame_idx, frame) in enumerate(zip(frame_indices, frames_to_use)):
+            # Copy frame
+            vis_frame = frame.copy()
+            
+            # Draw keypoints for this frame
+            for i, name in enumerate(self.KEYPOINT_NAMES):
+                if name in self.keypoint_trajectories and frame_idx < len(self.keypoint_trajectories[name].positions):
+                    if self.keypoint_trajectories[name].positions:
+                        x, y = self.keypoint_trajectories[name].positions[frame_idx]
+                        conf = self.keypoint_trajectories[name].confidences[frame_idx]
+                        
+                        if conf > 0.3:  # Only show confident keypoints
+                            color = (int(colors[i][2]*255), int(colors[i][1]*255), int(colors[i][0]*255))  # BGR
+                            cv2.circle(vis_frame, (int(x), int(y)), 5, color, -1)
+                            cv2.putText(vis_frame, name[:3], (int(x) + 5, int(y) - 5),
+                                      cv2.FONT_HERSHEY_SIMPLEX, 0.3, color, 1)
+            
+            # Draw skeleton
+            for conn in self.SKELETON_CONNECTIONS:
+                kp1, kp2 = conn
+                if (kp1 in self.keypoint_trajectories and kp2 in self.keypoint_trajectories and
+                    frame_idx < len(self.keypoint_trajectories[kp1].positions) and
+                    frame_idx < len(self.keypoint_trajectories[kp2].positions) and
+                    self.keypoint_trajectories[kp1].positions and
+                    self.keypoint_trajectories[kp2].positions):
+                    
+                    x1, y1 = self.keypoint_trajectories[kp1].positions[frame_idx]
+                    x2, y2 = self.keypoint_trajectories[kp2].positions[frame_idx]
+                    conf1 = self.keypoint_trajectories[kp1].confidences[frame_idx]
+                    conf2 = self.keypoint_trajectories[kp2].confidences[frame_idx]
+                    
+                    if conf1 > 0.3 and conf2 > 0.3:
+                        cv2.line(vis_frame, (int(x1), int(y1)), (int(x2), int(y2)), 
+                                (0, 255, 0), 2, cv2.LINE_AA)
+            
+            # Add frame number
+            cv2.putText(vis_frame, f"Frame {frame_idx+1}/{len(self.frames)}", (10, 30),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+            
+            # Add gait pattern if detected
+            if self.motion_data.get('gait_pattern'):
+                cv2.putText(vis_frame, f"Gait: {self.motion_data['gait_pattern']}", (10, 60),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
+            
+            annotated_frames.append(vis_frame)
+            
+            if idx % 10 == 0:
+                print(f"   Processing frame {idx+1}/{len(frames_to_use)}...")
+        
+        # Save as GIF
+        imageio.mimsave(output_path, annotated_frames, fps=fps, loop=0)
+        print(f"✅ Tracking GIF saved to: {output_path}")
