@@ -138,6 +138,55 @@ uv run cat-locomotion cv-pose --help
 --model MODEL       # YOLO model (yolov8x-pose.pt, yolov8n-pose.pt, etc.)
 ```
 
+## Genesis Robot Simulation Results
+
+The `genesis_robot_gifs/` directory contains GIF recordings of the Genesis robot simulating the movements from various cat memes:
+
+<p align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <img src="genesis_robot_gifs/cv_cat-punch.gif" width="300"><br>
+        <b>CV-Pose: Cat Punch Simulation</b>
+      </td>
+      <td align="center">
+        <img src="genesis_robot_gifs/yolo_cat-punch.gif" width="300"><br>
+        <b>YOLO: Cat Punch Simulation</b>
+      </td>
+    </tr>
+    <tr>
+      <td align="center">
+        <img src="genesis_robot_gifs/cv_chipi-chipi-chapa-chapa.gif" width="300"><br>
+        <b>CV-Pose: Chipi Chipi Chapa Chapa</b>
+      </td>
+      <td align="center">
+        <img src="genesis_robot_gifs/yolo_chipi-chipi-chapa-chapa.gif" width="300"><br>
+        <b>YOLO: Chipi Chipi Chapa Chapa</b>
+      </td>
+    </tr>
+    <tr>
+      <td align="center">
+        <img src="genesis_robot_gifs/cv_dancing-dog.gif" width="300"><br>
+        <b>CV-Pose: Dancing Dog</b>
+      </td>
+      <td align="center">
+        <img src="genesis_robot_gifs/yolo_dancing-dog.gif" width="300"><br>
+        <b>YOLO: Dancing Dog</b>
+      </td>
+    </tr>
+    <tr>
+      <td align="center">
+        <img src="genesis_robot_gifs/cv_happy-cat.gif" width="300"><br>
+        <b>CV-Pose: Happy Cat</b>
+      </td>
+      <td align="center">
+        <img src="genesis_robot_gifs/yolo_happy-cat.gif" width="300"><br>
+        <b>YOLO: Happy Cat</b>
+      </td>
+    </tr>
+  </table>
+</p>
+
 ## Output Files 
 
 When you run the program, the following files are automatically generated in the `outputs/` directory:
