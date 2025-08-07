@@ -98,7 +98,7 @@ uv run cat-locomotion cv-pose --gif assets/gifs/happy-cat.gif --speed 1.5 --ampl
       </td>
       <td align="center">→</td>
       <td align="center">
-        <img src="outputs/cv_tracking_cat-punch.gif" width="200"><br>
+        <img src="outputs/yolo_tracking_cat-punch.gif" width="200"><br>
         <b>Output: Pose Tracking</b>
       </td>
       <td align="center">→</td>
