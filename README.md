@@ -1,12 +1,12 @@
 # Cat Meme Locomotion 
 
-A controller that enables Unitree Go2 robots to mimic movements from cat GIFs/videos. Supports multiple pose estimation methods and automatically generates motion capture and tracking visualizations.
+This project allows the Unitree Go2 robot to mimic the locomotion from popular cat memes. By analyzing videos and GIFs, this controller enables the robot to replicate those unique and hilarious motions🐈
 
-<p align="">
-  <img src="genesis_robot_gifs/cv_chipi-chipi-chapa-chapa.gif" alt="unitreeDemo" width="400">
+<p align="center">
   <img src="assets/gifs/chipi-chipi-chapa-chapa.gif" alt="Chipi Chipi" width="400">
+  <img src="genesis_robot_gifs/yolo_chipi-chipi-chapa-chapa.gif" alt="unitreeDemo" width="300">
   <br>
-  <i>s</i>
+  <i>The robot mimicking the movements of a cat meme.</i>
 </p>
 
 ## Features 
@@ -15,20 +15,14 @@ A controller that enables Unitree Go2 robots to mimic movements from cat GIFs/vi
 - **Multiple pose estimation methods**:
   - **CV-Pose**: OpenCV-based animal pose estimation with accuracy metrics
   - **YOLO**: State-of-the-art pose estimation with human-to-animal keypoint mapping
-  - **Simple**: Direct keypoint mapping
-  - **Official**: Traditional motion extraction
-- **Automatically generated outputs**:
-  - Motion tracking GIFs with skeleton visualization
-  - Keypoint detection with accuracy metrics
-  - Per-keypoint confidence analysis
-- **Real-time simulation**: Using Genesis physics engine
+- **Simulation**: Using Genesis physics engine
 - **Accuracy tracking**: Detection rate, confidence scores, and tracking consistency
 
 ### Example Input GIFs
 <p align="center">
-  <img src="assets/gifs/happy-cat.gif" alt="Happy Cat" width="200">
-  <img src="assets/gifs/dancing-dog.gif" alt="Dancing Dog" width="200">
-  <img src="assets/gifs/chipi-chipi-chapa-chapa.gif" alt="Chipi Chipi" width="200">
+  <img src="assets/gifs/happy-cat.gif" alt="Happy Cat" height="200">
+  <img src="assets/gifs/cat-punch.gif" alt="Chipi Chipi" height="200">
+  <img src="assets/gifs/dancing-dog.gif" alt="Dancing Dog" height="200">
 </p>
 
 ## Installation 
@@ -37,7 +31,7 @@ A controller that enables Unitree Go2 robots to mimic movements from cat GIFs/vi
 
 - Python 3.10+
 - CUDA-compatible GPU (recommended)
-- Ubuntu 20.04/22.04
+- Ubuntu 20.04/22.04 (recommended)
 
 ### Installation with UV (recommended)
 
@@ -100,8 +94,8 @@ uv run cat-locomotion cv-pose --gif assets/gifs/happy-cat.gif --speed 1.5 --ampl
         <b>Output: Pose Tracking</b>
       </td>
       <td align="center">
-        <img src="genesis_robot_gifs/yolo_cat-punch.gif" width="200"><br>
-        <b></b>
+        <img src="genesis_robot_gifs/yolo_cat-punch.gif" width="300"><br>
+        <b>Robot Simulation</b>
       </td>
     </tr>
     <tr>
@@ -112,11 +106,11 @@ uv run cat-locomotion cv-pose --gif assets/gifs/happy-cat.gif --speed 1.5 --ampl
       <td align="center">→</td>
       <td align="center">
         <img src="outputs/cv_tracking_dancing-dog.gif" width="200"><br>
-        <b>Output: Motion Tracking</b>
+        <b>Output: Pose Tracking</b>
       </td>
       <td align="center">
-        <img src="genesis_robot_gifs/cv_dancing-dog.gif" width="200"><br>
-        <b></b>
+        <img src="genesis_robot_gifs/cv_dancing-dog.gif" width="300"><br>
+        <b>Robot Simulation</b>
       </td>
     </tr>
   </table>
