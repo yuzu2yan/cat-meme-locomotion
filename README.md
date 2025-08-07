@@ -93,6 +93,7 @@ uv run cat-locomotion cv-pose --gif assets/gifs/happy-cat.gif --speed 1.5 --ampl
         <img src="outputs/cv_tracking_cat-punch.gif" width="200"><br>
         <b>Output: Pose Tracking</b>
       </td>
+      <td align="center">→</td>
       <td align="center">
         <img src="genesis_robot_gifs/yolo_cat-punch.gif" width="300"><br>
         <b>Robot Simulation</b>
@@ -108,6 +109,7 @@ uv run cat-locomotion cv-pose --gif assets/gifs/happy-cat.gif --speed 1.5 --ampl
         <img src="outputs/cv_tracking_dancing-dog.gif" width="200"><br>
         <b>Output: Pose Tracking</b>
       </td>
+      <td align="center">→</td>
       <td align="center">
         <img src="genesis_robot_gifs/cv_dancing-dog.gif" width="300"><br>
         <b>Robot Simulation</b>
@@ -218,6 +220,11 @@ The PNG output includes:
 ### YOLO Outputs
 - `yolo_keypoints_*.png` - Visualization of detected keypoints
 - `yolo_tracking_*.gif` - Motion capture animation (always outputs GIF regardless of input format)
+<p align="center">
+  <img src="outputs/yolo_keypoints_dancing-dog.png" alt="YOLO Pose Analysis" width="800">
+  <br>
+  <i>YOLO-Pose analysis showing keypoints confidence over time</i>
+</p>
 
 ## Pose Estimation Method Comparison 
 
@@ -229,43 +236,6 @@ The PNG output includes:
 | **Processing Speed** | Fast | Fast with GPU |
 | **External Dependencies** | None (OpenCV only) | ultralytics |
 | **Output Quality** | High with accuracy tracking | High |
-
-### Example Outputs
-
-<p align="center">
-  <table>
-    <tr>
-      <td align="center">
-        <img src="outputs/cv_tracking_cat-punch.gif" width="350"><br>
-        <b>CV-Pose: Cat Punch Tracking</b>
-      </td>
-      <td align="center">
-        <img src="outputs/cv_tracking_dancing-dog.gif" width="350"><br>
-        <b>CV-Pose: Dancing Dog Tracking</b>
-      </td>
-    </tr>
-    <tr>
-      <td align="center">
-        <img src="outputs/cv_tracking_happy-cat.gif" width="350"><br>
-        <b>CV-Pose: Happy Cat Tracking</b>
-      </td>
-      <td align="center">
-        <img src="outputs/cv_tracking_chipi-chipi-chapa-chapa.gif" width="350"><br>
-        <b>CV-Pose: Chipi Chipi Chapa Chapa Tracking</b>
-      </td>
-    </tr>
-    <tr>
-      <td align="center">
-        <img src="outputs/cv_tracking_kitten-walking.gif" width="350"><br>
-        <b>CV-Pose: Kitten Walking (from MP4)</b>
-      </td>
-      <td align="center">
-        <img src="outputs/cv_pose_kitten-walking.png" width="350"><br>
-        <b>CV-Pose: Kitten Walking Accuracy Analysis</b>
-      </td>
-    </tr>
-  </table>
-</p>
 
 ## Troubleshooting 
 
@@ -333,6 +303,3 @@ pytest tests/
 - [Genesis](https://github.com/Genesis-Embodied-AI/Genesis) - Physics simulation
 - [Unitree Robotics](https://www.unitree.com/) - Go2 robot model
 - [Ultralytics](https://github.com/ultralytics/ultralytics) - YOLOv8 implementation
-
-## Special Thanks
-
