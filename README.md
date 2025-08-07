@@ -305,6 +305,8 @@ pytest tests/
 2. Add a new subcommand to `cli.py`
 3. Update README
 
+## Future Work
+Analyzing the animal locomotion with [DeepLabCut](https://www.mackenziemathislab.org/deeplabcut#:~:text=DeepLabCut%E2%84%A2%20is%20an%20efficient,typically%2050%2D200%20frames) or [MMPose](https://github.com/open-mmlab/mmpose)
 
 ## Acknowledgments 
 
