@@ -2,10 +2,11 @@
 
 A controller that enables Unitree Go2 robots to mimic movements from cat GIFs/videos. Supports multiple pose estimation methods and automatically generates motion capture and tracking visualizations.
 
-<p align="center">
-  <img src="outputs/cv_tracking_dancing-dog.gif" alt="Demo" width="600">
+<p align="">
+  <img src="genesis_robot_gifs/cv_chipi-chipi-chapa-chapa.gif" alt="unitreeDemo" width="400">
+  <img src="assets/gifs/chipi-chipi-chapa-chapa.gif" alt="Chipi Chipi" width="400">
   <br>
-  <i>Real-time pose tracking and robot simulation from GIF animations</i>
+  <i>s</i>
 </p>
 
 ## Features 
@@ -90,24 +91,32 @@ uv run cat-locomotion cv-pose --gif assets/gifs/happy-cat.gif --speed 1.5 --ampl
   <table>
     <tr>
       <td align="center">
-        <img src="assets/gifs/dancing-dog.gif" width="250"><br>
-        <b>Input: Dancing Dog</b>
-      </td>
-      <td align="center">→</td>
-      <td align="center">
-        <img src="outputs/cv_tracking_dancing-dog.gif" width="250"><br>
-        <b>Output: Motion Tracking</b>
-      </td>
-    </tr>
-    <tr>
-      <td align="center">
-        <img src="assets/gifs/cat-punch.gif" width="250"><br>
+        <img src="assets/gifs/cat-punch.gif" width="200"><br>
         <b>Input: Cat Punch</b>
       </td>
       <td align="center">→</td>
       <td align="center">
-        <img src="outputs/cv_tracking_cat-punch.gif" width="250"><br>
+        <img src="outputs/cv_tracking_cat-punch.gif" width="200"><br>
         <b>Output: Pose Tracking</b>
+      </td>
+      <td align="center">
+        <img src="genesis_robot_gifs/yolo_cat-punch.gif" width="200"><br>
+        <b></b>
+      </td>
+    </tr>
+    <tr>
+      <td align="center">
+        <img src="assets/gifs/dancing-dog.gif" width="200"><br>
+        <b>Input: Dancing Dog</b>
+      </td>
+      <td align="center">→</td>
+      <td align="center">
+        <img src="outputs/cv_tracking_dancing-dog.gif" width="200"><br>
+        <b>Output: Motion Tracking</b>
+      </td>
+      <td align="center">
+        <img src="genesis_robot_gifs/cv_dancing-dog.gif" width="200"><br>
+        <b></b>
       </td>
     </tr>
   </table>
