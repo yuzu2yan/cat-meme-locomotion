@@ -1,4 +1,12 @@
 # Cat Meme Locomotion 
+![release_date](https://img.shields.io/badge/release_date-Jul_2025-yellow)
+[![python](https://img.shields.io/badge/Python-v3.10.0-blue)](https://www.python.org/downloads/release/python-3100/)
+[![openCV](https://img.shields.io/badge/OpenCV-v4.8.0-blue)](https://docs.opencv.org/4.8.0/)
+[![genesis](https://img.shields.io/badge/Genesis-v0.2.1-blue)](https://github.com/Genesis-Embodied-AI/Genesis)  
+[![python](https://img.shields.io/badge/-Python-F9DC3E.svg?logo=python&style=flat)](https://www.python.org/)
+[![ubuntu](https://img.shields.io/badge/-Ubuntu-6F52B5.svg?logo=ubuntu&style=flat)](https://releases.ubuntu.com/jammy/)
+[![CUDA](https://img.shields.io/badge/CUDA-76B900?logo=nvidia&logoColor=fff)](https://developer.nvidia.com/cuda-toolkit)
+
 
 This project allows the Unitree Go2 robot to mimic the locomotion from popular cat memes. By analyzing videos and GIFs, this controller enables the robot to replicate those unique and hilarious motions🐈
 
